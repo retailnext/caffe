@@ -254,6 +254,10 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
     }
   }
 
+  if (num_kept == 0) {
+    LOG(INFO) << "Couldn't find any detections";
+    return;
+  }
   vector<int> top_shape(2, 1);
   top_shape.push_back(num_kept);
   top_shape.push_back(7);
