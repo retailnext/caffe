@@ -13,6 +13,7 @@ void DetectionEvaluateLayer<Dtype>::LayerSetUp(
       const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   const DetectionEvaluateParameter& detection_evaluate_param =
       this->layer_param_.detection_evaluate_param();
+  std::cout << "USING DETECT EVAL LAYER";
   CHECK(detection_evaluate_param.has_num_classes())
       << "Must provide num_classes.";
   num_classes_ = detection_evaluate_param.num_classes();

@@ -159,31 +159,38 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
           top_data[count * 7 + 3 + k] = cur_bbox_data[idx * 4 + k];
         }
         if (need_save_) {
-          // Generate output bbox.
-          NormalizedBBox bbox;
-          bbox.set_xmin(top_data[count * 7 + 3]);
-          bbox.set_ymin(top_data[count * 7 + 4]);
-          bbox.set_xmax(top_data[count * 7 + 5]);
-          bbox.set_ymax(top_data[count * 7 + 6]);
-          NormalizedBBox out_bbox;
-          OutputBBox(bbox, sizes_[name_count_], has_resize_, resize_param_,
-                     &out_bbox);
+           //Generate output bbox.
+           NormalizedBBox bbox;
+           bbox.set_xmin(top_data[count * 7 + 3]);
+           bbox.set_ymin(top_data[count * 7 + 4]);
+           bbox.set_xmax(top_data[count * 7 + 5]);
+           bbox.set_ymax(top_data[count * 7 + 6]);
+           NormalizedBBox out_bbox;
+           OutputBBox(bbox, sizes_[name_count_], has_resize_, resize_param_,
+                      &out_bbox);
           float score = top_data[count * 7 + 2];
           float xmin = out_bbox.xmin();
           float ymin = out_bbox.ymin();
           float xmax = out_bbox.xmax();
           float ymax = out_bbox.ymax();
-          ptree pt_xmin, pt_ymin, pt_width, pt_height;
-          pt_xmin.put<float>("", round(xmin * 100) / 100.);
-          pt_ymin.put<float>("", round(ymin * 100) / 100.);
-          pt_width.put<float>("", round((xmax - xmin) * 100) / 100.);
-          pt_height.put<float>("", round((ymax - ymin) * 100) / 100.);
+          ptree pt_xmin, pt_ymin, pt_xmax, pt_ymax;
 
+	  // std::cout << "XMIN is " << bbox.xmin();
+          // pt_xmin.put<float>("", round(xmin * 100) / 100.);
+          // pt_ymin.put<float>("", round(ymin * 100) / 100.);
+          // pt_width.put<float>("", round((xmax - xmin) * 100) / 100.);
+          // pt_height.put<float>("", round((ymax - ymin) * 100) / 100.);
+	  pt_xmin.put<float>("",  bbox.xmin());
+	  pt_ymin.put<float>("",  bbox.ymin());
+          pt_xmax.put<float>("",  bbox.xmax());
+          pt_ymax.put<float>("",  bbox.ymax());
+
+	  //LOG(INFO) << "XMin is " << top_data[count * 7 + 3];
           ptree cur_bbox;
           cur_bbox.push_back(std::make_pair("", pt_xmin));
           cur_bbox.push_back(std::make_pair("", pt_ymin));
-          cur_bbox.push_back(std::make_pair("", pt_width));
-          cur_bbox.push_back(std::make_pair("", pt_height));
+          cur_bbox.push_back(std::make_pair("", pt_xmax));
+          cur_bbox.push_back(std::make_pair("", pt_ymax));
 
           ptree cur_det;
           cur_det.put("image_id", names_[name_count_]);
@@ -225,9 +232,9 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
             }
             string image_name = pt.get<string>("image_id");
             float score = pt.get<float>("score");
-            vector<int> bbox;
+            vector<double> bbox;
             BOOST_FOREACH(ptree::value_type &elem, pt.get_child("bbox")) {
-              bbox.push_back(static_cast<int>(elem.second.get_value<float>()));
+              bbox.push_back(static_cast<double>(elem.second.get_value<float>()));
             }
             *(outfiles[label_name]) << image_name;
             *(outfiles[label_name]) << " " << score;
