@@ -72,12 +72,10 @@ caffe_root = os.getcwd()
 
 # Set true if you want to start training right after generating all files.
 run_soon = True
-# The device id for webcam
-webcam_id = 0
-# Number of frames to be skipped.
-skip_frames = 0
+# The video file path
+video_file = "/home/bvi/data/person_tracking/videos/1.1.1.1.mp4"
 
-# The parameters for the webcam demo
+# The parameters for the video demo
 
 # Key parameters used in training
 # If true, use batch norm for all newly added layers.
@@ -105,19 +103,18 @@ gpus = "0"
 # Number of frames to be processed per batch.
 test_batch_size = 1
 # Only display high quality detections whose scores are higher than a threshold.
-visualize_threshold = 0.6
-# Size of webcam image.
-webcam_width = 1200
-webcam_height = 800
+visualize_threshold = 0.3
+# Size of video image.
+video_width = 1280
+video_height = 720
 # Scale the image size for display.
-scale = 1.5
+scale = 0.8
 
 ### Hopefully you don't need to change the following ###
 resize = "{}x{}".format(resize_width, resize_height)
 video_data_param = {
-        'video_type': P.VideoData.WEBCAM,
-        'device_id': webcam_id,
-        'skip_frames': skip_frames,
+        'video_type': P.VideoData.VIDEO,
+        'video_file': video_file,
         }
 test_transform_param = {
         'mean_value': [104, 117, 123],
@@ -134,8 +131,8 @@ output_transform_param = {
         'resize_param': {
                 'prob': 1,
                 'resize_mode': P.Resize.WARP,
-                'height': int(webcam_height * scale),
-                'width': int(webcam_width * scale),
+                'height': int(video_height * scale),
+                'width': int(video_width * scale),
                 'interp_mode': [P.Resize.LINEAR],
                 },
         }
@@ -146,6 +143,9 @@ det_out_param = {
     'background_label_id': background_label_id,
     'nms_param': {'nms_threshold': 0.45, 'top_k': 400},
     'save_output_param': {
+	    'output_directory': "/home/bvi/data/VOCdevkit/results/VOC07012/SSD_300x300/Main",
+	    'output_name_prefix' : "comp4_det_testB_", 
+	    'output_format' : "VOC",
             'label_map_file': label_map_file,
             },
     'keep_top_k': 200,
@@ -161,11 +161,11 @@ job_name = "SSD_{}".format(resize)
 model_name = "VGG_VOC0712_{}".format(job_name)
 
 # Directory which stores the model .prototxt file.
-save_dir = "models/VGGNet/VOC0712/{}_webcam".format(job_name)
+save_dir = "models/VGGNet/VOC0712/{}_video".format(job_name)
 # Directory which stores the snapshot of trained models.
 snapshot_dir = "models/VGGNet/VOC0712/{}".format(job_name)
 # Directory which stores the job script and log file.
-job_dir = "jobs/VGGNet/VOC0712/{}_webcam".format(job_name)
+job_dir = "jobs/VGGNet/VOC0712/{}_video".format(job_name)
 
 # model definition files.
 test_net_file = "{}/test.prototxt".format(save_dir)
