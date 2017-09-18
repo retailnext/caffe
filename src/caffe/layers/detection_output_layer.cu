@@ -211,9 +211,9 @@ if (need_save_) {
   ++name_count_;
     //  if (name_count_ % num_test_image_ == 0) {
   if (output_format_ == "VOC") {
-    std::count << "--------------------" << std::endl;
-    std::count << "Running VOC" << std::endl;
-    std::count << "--------------------" << std::endl;
+    std::cout << "--------------------" << std::endl;
+    std::cout << "Running VOC" << std::endl;
+    std::cout << "--------------------" << std::endl;
 
     map<string, std::ofstream*> outfiles;
     for (int c = 0; c < num_classes_; ++c) {
@@ -225,7 +225,7 @@ if (need_save_) {
         output_name_prefix_ + label_name + ".txt");
       boost::filesystem::path out_file = output_directory / file;
       outfiles[label_name] = new std::ofstream(out_file.string().c_str(),
-        std::ofstream::out);
+        std::ofstream::out | std::ofstream::app);
     }
     BOOST_FOREACH(ptree::value_type &det, detections_.get_child("")) {
       ptree pt = det.second;
@@ -258,9 +258,9 @@ if (need_save_) {
     }
   } else if (output_format_ == "COCO") {
 
-    std::count << "--------------------" << std::endl;
-    std::count << "Running COCO" << std::endl;
-    std::count << "--------------------" << std::endl;
+    std::cout << "--------------------" << std::endl;
+    std::cout << "Running COCO" << std::endl;
+    std::cout << "--------------------" << std::endl;
 
     boost::filesystem::path output_directory(output_directory_);
     boost::filesystem::path file(output_name_prefix_ + ".json");
@@ -278,9 +278,9 @@ if (need_save_) {
     << std::endl << "]" << std::endl;
   } else if (output_format_ == "ILSVRC") {
 
-    std::count << "--------------------" << std::endl;
-    std::count << "Running ILSVRC" << std::endl;
-    std::count << "--------------------" << std::endl;
+    std::cout << "--------------------" << std::endl;
+    std::cout << "Running ILSVRC" << std::endl;
+    std::cout << "--------------------" << std::endl;
 
     boost::filesystem::path output_directory(output_directory_);
     boost::filesystem::path file(output_name_prefix_ + ".txt");
