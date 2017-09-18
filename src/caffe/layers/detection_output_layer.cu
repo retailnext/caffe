@@ -211,6 +211,10 @@ if (need_save_) {
   ++name_count_;
     //  if (name_count_ % num_test_image_ == 0) {
   if (output_format_ == "VOC") {
+    std::count << "--------------------" << std::endl;
+    std::count << "Running VOC" << std::endl;
+    std::count << "--------------------" << std::endl;
+
     map<string, std::ofstream*> outfiles;
     for (int c = 0; c < num_classes_; ++c) {
       if (c == background_label_id_) {
@@ -253,6 +257,11 @@ if (need_save_) {
       delete outfiles[label_name];
     }
   } else if (output_format_ == "COCO") {
+
+    std::count << "--------------------" << std::endl;
+    std::count << "Running COCO" << std::endl;
+    std::count << "--------------------" << std::endl;
+
     boost::filesystem::path output_directory(output_directory_);
     boost::filesystem::path file(output_name_prefix_ + ".json");
     boost::filesystem::path out_file = output_directory / file;
@@ -268,6 +277,11 @@ if (need_save_) {
     outfile << rv.substr(rv.find("["), rv.rfind("]") - rv.find("["))
     << std::endl << "]" << std::endl;
   } else if (output_format_ == "ILSVRC") {
+
+    std::count << "--------------------" << std::endl;
+    std::count << "Running ILSVRC" << std::endl;
+    std::count << "--------------------" << std::endl;
+
     boost::filesystem::path output_directory(output_directory_);
     boost::filesystem::path file(output_name_prefix_ + ".txt");
     boost::filesystem::path out_file = output_directory / file;
