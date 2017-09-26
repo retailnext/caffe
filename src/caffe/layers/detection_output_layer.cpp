@@ -15,6 +15,7 @@ namespace caffe {
 template <typename Dtype>
 void DetectionOutputLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
+  std::cout << "Using the detection output layer for analysiis DETECT";
   const DetectionOutputParameter& detection_output_param =
       this->layer_param_.detection_output_param();
   CHECK(detection_output_param.has_num_classes()) << "Must specify num_classes";
@@ -85,6 +86,7 @@ void DetectionOutputLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       //    ...
       string name;
       int height, width;
+      std::cout << "INFILE IS " << infile;
       while (infile >> name >> height >> width) {
         names_.push_back(name);
         sizes_.push_back(std::make_pair(height, width));
@@ -184,6 +186,7 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
   const Dtype* prior_data = bottom[2]->cpu_data();
   const int num = bottom[0]->num();
 
+  std::cout << "GOING THROUGH FORWARD CPU DETECT ";
   // Retrieve all location predictions.
   vector<LabelBBox> all_loc_preds;
   GetLocPredictions(loc_data, num, num_priors_, num_loc_classes_,
@@ -314,6 +317,7 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
         LOG(FATAL) << "Could not find location predictions for " << loc_label;
         continue;
       }
+      std::cout << "USING DETECTON OUTPUT LAYER";
       const vector<NormalizedBBox>& bboxes =
           decode_bboxes.find(loc_label)->second;
       vector<int>& indices = it->second;
@@ -341,17 +345,23 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
           float ymin = out_bbox.ymin();
           float xmax = out_bbox.xmax();
           float ymax = out_bbox.ymax();
-          ptree pt_xmin, pt_ymin, pt_width, pt_height;
-          pt_xmin.put<float>("", round(xmin * 100) / 100.);
-          pt_ymin.put<float>("", round(ymin * 100) / 100.);
-          pt_width.put<float>("", round((xmax - xmin) * 100) / 100.);
-          pt_height.put<float>("", round((ymax - ymin) * 100) / 100.);
-
-          ptree cur_bbox;
+          ptree pt_xmin, pt_ymin, pt_width, pt_height, pt_xmax, pt_ymax;
+         // pt_xmin.put<float>("", round(xmin * 100) / 100.);
+         // pt_xmax.put<float>("", round(xmax * 100) / 100.);
+         // pt_ymin.put<float>("", round(ymin * 100) / 100.);
+         // pt_ymax.put<float>("", round(ymax * 100) / 100.);
+         // pt_width.put<float>("", round((xmax - xmin) * 100) / 100.);
+          //pt_height.put<float>("", round((ymax - ymin) * 100) / 100.);
+	  pt_xmin.put<float>("", xmin/100);
+          pt_xmax.put<float>("", xmax/100);
+          pt_ymin.put<float>("", ymin/100);
+          pt_ymax.put<float>("", ymax/100);
+         
+	  ptree cur_bbox;
           cur_bbox.push_back(std::make_pair("", pt_xmin));
           cur_bbox.push_back(std::make_pair("", pt_ymin));
-          cur_bbox.push_back(std::make_pair("", pt_width));
-          cur_bbox.push_back(std::make_pair("", pt_height));
+          cur_bbox.push_back(std::make_pair("", pt_xmax));
+          cur_bbox.push_back(std::make_pair("", pt_ymax));
 
           ptree cur_det;
           cur_det.put("image_id", names_[name_count_]);
@@ -369,6 +379,7 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
       }
     }
     if (need_save_) {
+      std::cout << "WORKING ON SAVING FILE NOWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW_______________________________________________";
       ++name_count_;
       if (name_count_ % num_test_image_ == 0) {
         if (output_format_ == "VOC") {
@@ -393,10 +404,11 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
             }
             string image_name = pt.get<string>("image_id");
             float score = pt.get<float>("score");
-            vector<int> bbox;
+            vector<float> bbox;
             BOOST_FOREACH(ptree::value_type &elem, pt.get_child("bbox")) {
-              bbox.push_back(static_cast<int>(elem.second.get_value<float>()));
+              bbox.push_back(static_cast<float>(elem.second.get_value<float>()));
             }
+	    std::cout  << "BBOX 3 is " <<  bbox[3] << " ";
             *(outfiles[label_name]) << image_name;
             *(outfiles[label_name]) << " " << score;
             *(outfiles[label_name]) << " " << bbox[0] << " " << bbox[1];
@@ -419,7 +431,7 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
           boost::filesystem::path out_file = output_directory / file;
           std::ofstream outfile;
           outfile.open(out_file.string().c_str(), std::ofstream::out);
-
+	  std::cout << "USING COCO FORMAT";
           boost::regex exp("\"(null|true|false|-?[0-9]+(\\.[0-9]+)?)\"");
           ptree output;
           output.add_child("detections", detections_);
@@ -442,7 +454,7 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
             float score = pt.get<float>("score");
             vector<int> bbox;
             BOOST_FOREACH(ptree::value_type &elem, pt.get_child("bbox")) {
-              bbox.push_back(static_cast<int>(elem.second.get_value<float>()));
+              bbox.push_back(static_cast<float>(elem.second.get_value<float>()));
             }
             outfile << image_name << " " << label << " " << score;
             outfile << " " << bbox[0] << " " << bbox[1];
