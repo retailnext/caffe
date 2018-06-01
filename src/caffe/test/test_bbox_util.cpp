@@ -1296,7 +1296,6 @@ TEST_F(CPUBBoxUtilTest, TestApplyNMSFast) {
   vector<float> scores;
   float score_threshold = 0.;
   float nms_threshold = 0.3;
-  float eta = 1.;
   int top_k = -1;
   vector<int> indices;
 
@@ -1330,7 +1329,7 @@ TEST_F(CPUBBoxUtilTest, TestApplyNMSFast) {
   bboxes.push_back(bbox);
   scores.push_back(0.5);
 
-  ApplyNMSFast(bboxes, scores, score_threshold, nms_threshold, eta, top_k,
+  ApplyNMSFast(bboxes, scores, score_threshold, nms_threshold, top_k,
                &indices);
 
   EXPECT_EQ(indices.size(), 3);
@@ -1339,21 +1338,21 @@ TEST_F(CPUBBoxUtilTest, TestApplyNMSFast) {
   EXPECT_EQ(indices[2], 2);
 
   top_k = 2;
-  ApplyNMSFast(bboxes, scores, score_threshold, nms_threshold, eta, top_k,
+  ApplyNMSFast(bboxes, scores, score_threshold, nms_threshold, top_k,
                &indices);
   EXPECT_EQ(indices.size(), 1);
   EXPECT_EQ(indices[0], 0);
 
   top_k = 3;
   nms_threshold = 0.2;
-  ApplyNMSFast(bboxes, scores, score_threshold, nms_threshold, eta, top_k,
+  ApplyNMSFast(bboxes, scores, score_threshold, nms_threshold, top_k,
                &indices);
   EXPECT_EQ(indices.size(), 1);
   EXPECT_EQ(indices[0], 0);
 
   top_k = -1;
   score_threshold = 0.5;
-  ApplyNMSFast(bboxes, scores, score_threshold, nms_threshold, eta, top_k,
+  ApplyNMSFast(bboxes, scores, score_threshold, nms_threshold, top_k,
                &indices);
   EXPECT_EQ(indices.size(), 1);
   EXPECT_EQ(indices[0], 0);

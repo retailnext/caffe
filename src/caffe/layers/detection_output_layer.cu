@@ -75,7 +75,7 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
         continue;
       }
       const vector<NormalizedBBox>& bboxes = decode_bboxes.find(label)->second;
-      ApplyNMSFast(bboxes, scores, confidence_threshold_, nms_threshold_, eta_,
+      ApplyNMSFast(bboxes, scores, confidence_threshold_, nms_threshold_,
           top_k_, &(indices[c]));
       num_det += indices[c].size();
     }

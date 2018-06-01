@@ -31,9 +31,6 @@ void DetectionOutputLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   // Parameters used in nms.
   nms_threshold_ = detection_output_param.nms_param().nms_threshold();
   CHECK_GE(nms_threshold_, 0.) << "nms_threshold must be non negative.";
-  eta_ = detection_output_param.nms_param().eta();
-  CHECK_GT(eta_, 0.);
-  CHECK_LE(eta_, 1.);
   top_k_ = -1;
   if (detection_output_param.nms_param().has_top_k()) {
     top_k_ = detection_output_param.nms_param().top_k();
@@ -208,7 +205,7 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
         continue;
       }
       const vector<NormalizedBBox>& bboxes = decode_bboxes.find(label)->second;
-      ApplyNMSFast(bboxes, scores, confidence_threshold_, nms_threshold_, eta_,
+      ApplyNMSFast(bboxes, scores, confidence_threshold_, nms_threshold_,
           top_k_, &(indices[c]));
       num_det += indices[c].size();
     }

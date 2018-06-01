@@ -1751,8 +1751,7 @@ void GetMaxScoreIndex(const vector<float>& scores, const float threshold,
 
 void ApplyNMSFast(const vector<NormalizedBBox>& bboxes,
       const vector<float>& scores, const float score_threshold,
-      const float nms_threshold, const float eta, const int top_k,
-      vector<int>* indices) {
+      const float nms_threshold, const int top_k, vector<int>* indices) {
   // Sanity check.
   CHECK_EQ(bboxes.size(), scores.size())
       << "bboxes and scores have different size.";
@@ -1762,7 +1761,6 @@ void ApplyNMSFast(const vector<NormalizedBBox>& bboxes,
   GetMaxScoreIndex(scores, score_threshold, top_k, &score_index_vec);
 
   // Do nms.
-  float adaptive_threshold = nms_threshold;
   indices->clear();
   while (score_index_vec.size() != 0) {
     const int idx = score_index_vec.front().second;
@@ -1771,7 +1769,7 @@ void ApplyNMSFast(const vector<NormalizedBBox>& bboxes,
       if (keep) {
         const int kept_idx = (*indices)[k];
         float overlap = JaccardOverlap(bboxes[idx], bboxes[kept_idx]);
-        keep = overlap <= adaptive_threshold;
+        keep = overlap <= nms_threshold;
       } else {
         break;
       }
@@ -1780,9 +1778,6 @@ void ApplyNMSFast(const vector<NormalizedBBox>& bboxes,
       indices->push_back(idx);
     }
     score_index_vec.erase(score_index_vec.begin());
-    if (keep && eta < 1 && adaptive_threshold > 0.5) {
-      adaptive_threshold *= eta;
-    }
   }
 }
 

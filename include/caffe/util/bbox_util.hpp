@@ -378,13 +378,11 @@ void ApplyNMS(const bool* overlapped, const int num, vector<int>* indices);
 //    scores: a set of corresponding confidences.
 //    score_threshold: a threshold used to filter detection results.
 //    nms_threshold: a threshold used in non maximum suppression.
-//    eta: adaptation rate for nms threshold (see Piotr's paper).
 //    top_k: if not -1, keep at most top_k picked indices.
 //    indices: the kept indices of bboxes after nms.
 void ApplyNMSFast(const vector<NormalizedBBox>& bboxes,
       const vector<float>& scores, const float score_threshold,
-      const float nms_threshold, const float eta, const int top_k,
-      vector<int>* indices);
+      const float nms_threshold, const int top_k, vector<int>* indices);
 
 // Compute cumsum of a set of pairs.
 void CumSum(const vector<pair<float, int> >& pairs, vector<int>* cumsum);
