@@ -61,9 +61,6 @@ class DetectionEvaluateLayer : public Layer<Dtype> {
   vector<pair<int, int> > sizes_;
   int count_;
   bool use_normalized_bbox_;
-
-  bool has_resize_;
-  ResizeParameter resize_param_;
 };
 
 }  // namespace caffe
