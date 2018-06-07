@@ -29,9 +29,9 @@ def UnpackVariable(var, num):
 
 def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     kernel_size, pad, stride, use_scale=True, lr_mult=1,
+    eps=0.001, moving_average_fraction=0.999, use_global_stats=False,
     conv_prefix='', conv_postfix='', bn_prefix='', bn_postfix='_bn',
-    scale_prefix='', scale_postfix='_scale', bias_prefix='', bias_postfix='_bias',
-    **bn_params):
+    scale_prefix='', scale_postfix='_scale', bias_prefix='', bias_postfix='_bias'):
   if use_bn:
     # parameters for convolution layer with batchnorm.
     kwargs = {
@@ -39,9 +39,6 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
         'weight_filler': dict(type='gaussian', std=0.01),
         'bias_term': False,
         }
-    eps = bn_params.get('eps', 0.001)
-    moving_average_fraction = bn_params.get('moving_average_fraction', 0.999)
-    use_global_stats = bn_params.get('use_global_stats', False)
     # parameters for batchnorm layer.
     bn_kwargs = {
         'param': [
@@ -113,7 +110,7 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     relu_name = '{}_relu'.format(conv_name)
     net[relu_name] = L.ReLU(net[conv_name], in_place=True)
 
-def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch1, **bn_param):
+def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch1, use_global_stats=False):
   # ResBody(net, 'pool1', '2a', 64, 64, 256, 1, True)
 
   conv_prefix = 'res{}_'.format(block_name)
@@ -128,9 +125,10 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
     branch_name = 'branch1'
     ConvBNLayer(net, from_layer, branch_name, use_bn=True, use_relu=False,
         num_output=out2c, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,
+        use_global_stats=use_global_stats,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, **bn_param)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     branch1 = '{}{}'.format(conv_prefix, branch_name)
   else:
     branch1 = from_layer
@@ -138,25 +136,28 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
   branch_name = 'branch2a'
   ConvBNLayer(net, from_layer, branch_name, use_bn=True, use_relu=True,
       num_output=out2a, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,
+      use_global_stats=use_global_stats,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-      scale_prefix=scale_prefix, scale_postfix=scale_postfix, **bn_param)
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix)
   out_name = '{}{}'.format(conv_prefix, branch_name)
 
   branch_name = 'branch2b'
   ConvBNLayer(net, out_name, branch_name, use_bn=True, use_relu=True,
       num_output=out2b, kernel_size=3, pad=1, stride=1, use_scale=use_scale,
+      use_global_stats=use_global_stats,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-      scale_prefix=scale_prefix, scale_postfix=scale_postfix, **bn_param)
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix)
   out_name = '{}{}'.format(conv_prefix, branch_name)
 
   branch_name = 'branch2c'
   ConvBNLayer(net, out_name, branch_name, use_bn=True, use_relu=False,
       num_output=out2c, kernel_size=1, pad=0, stride=1, use_scale=use_scale,
+      use_global_stats=use_global_stats,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-      scale_prefix=scale_prefix, scale_postfix=scale_postfix, **bn_param)
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix)
   branch2 = '{}{}'.format(conv_prefix, branch_name)
 
   res_name = 'res{}'.format(block_name)
@@ -165,7 +166,7 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
   net[relu_name] = L.ReLU(net[res_name], in_place=True)
 
 
-def InceptionTower(net, from_layer, tower_name, layer_params, **bn_param):
+def InceptionTower(net, from_layer, tower_name, layer_params):
   use_scale = False
   for param in layer_params:
     tower_layer = '{}/{}'.format(tower_name, param['name'])
@@ -173,14 +174,13 @@ def InceptionTower(net, from_layer, tower_name, layer_params, **bn_param):
     if 'pool' in tower_layer:
       net[tower_layer] = L.Pooling(net[from_layer], **param)
     else:
-      param.update(bn_param)
       ConvBNLayer(net, from_layer, tower_layer, use_bn=True, use_relu=True,
           use_scale=use_scale, **param)
     from_layer = tower_layer
   return net[from_layer]
 
 def CreateAnnotatedDataLayer(source, batch_size=32, backend=P.Data.LMDB,
-        output_label=True, train=True, label_map_file='', anno_type=None,
+        output_label=True, train=True, label_map_file='',
         transform_param={}, batch_sampler=[{}]):
     if train:
         kwargs = {
@@ -192,18 +192,20 @@ def CreateAnnotatedDataLayer(source, batch_size=32, backend=P.Data.LMDB,
                 'include': dict(phase=caffe_pb2.Phase.Value('TEST')),
                 'transform_param': transform_param,
                 }
-    ntop = 1
     if output_label:
-        ntop = 2
-    annotated_data_param = {
-        'label_map_file': label_map_file,
-        'batch_sampler': batch_sampler,
-        }
-    if anno_type is not None:
-        annotated_data_param.update({'anno_type': anno_type})
-    return L.AnnotatedData(name="data", annotated_data_param=annotated_data_param,
-        data_param=dict(batch_size=batch_size, backend=backend, source=source),
-        ntop=ntop, **kwargs)
+        data, label = L.AnnotatedData(name="data",
+            annotated_data_param=dict(label_map_file=label_map_file,
+                batch_sampler=batch_sampler),
+            data_param=dict(batch_size=batch_size, backend=backend, source=source),
+            ntop=2, **kwargs)
+        return [data, label]
+    else:
+        data = L.AnnotatedData(name="data",
+            annotated_data_param=dict(label_map_file=label_map_file,
+                batch_sampler=batch_sampler),
+            data_param=dict(batch_size=batch_size, backend=backend, source=source),
+            ntop=1, **kwargs)
+        return data
 
 
 def VGGNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
@@ -333,7 +335,7 @@ def VGGNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
     return net
 
 
-def ResNet101Body(net, from_layer, use_pool5=True, **bn_param):
+def ResNet101Body(net, from_layer, use_pool5=True, use_global_stats=False):
     conv_prefix = ''
     conv_postfix = ''
     bn_prefix = 'bn_'
@@ -341,36 +343,36 @@ def ResNet101Body(net, from_layer, use_pool5=True, **bn_param):
     scale_prefix = 'scale_'
     scale_postfix = ''
     ConvBNLayer(net, from_layer, 'conv1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=7, pad=3, stride=2,
+        num_output=64, kernel_size=7, pad=3, stride=2, use_global_stats=use_global_stats,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, **bn_param)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
 
     net.pool1 = L.Pooling(net.conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
 
-    ResBody(net, 'pool1', '2a', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=True, **bn_param)
-    ResBody(net, 'res2a', '2b', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False, **bn_param)
-    ResBody(net, 'res2b', '2c', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False, **bn_param)
+    ResBody(net, 'pool1', '2a', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=True, use_global_stats=use_global_stats)
+    ResBody(net, 'res2a', '2b', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False, use_global_stats=use_global_stats)
+    ResBody(net, 'res2b', '2c', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False, use_global_stats=use_global_stats)
 
-    ResBody(net, 'res2c', '3a', out2a=128, out2b=128, out2c=512, stride=2, use_branch1=True, **bn_param)
+    ResBody(net, 'res2c', '3a', out2a=128, out2b=128, out2c=512, stride=2, use_branch1=True, use_global_stats=use_global_stats)
 
     from_layer = 'res3a'
     for i in xrange(1, 4):
       block_name = '3b{}'.format(i)
-      ResBody(net, from_layer, block_name, out2a=128, out2b=128, out2c=512, stride=1, use_branch1=False, **bn_param)
+      ResBody(net, from_layer, block_name, out2a=128, out2b=128, out2c=512, stride=1, use_branch1=False, use_global_stats=use_global_stats)
       from_layer = 'res{}'.format(block_name)
 
-    ResBody(net, from_layer, '4a', out2a=256, out2b=256, out2c=1024, stride=2, use_branch1=True, **bn_param)
+    ResBody(net, from_layer, '4a', out2a=256, out2b=256, out2c=1024, stride=2, use_branch1=True, use_global_stats=use_global_stats)
 
     from_layer = 'res4a'
     for i in xrange(1, 23):
       block_name = '4b{}'.format(i)
-      ResBody(net, from_layer, block_name, out2a=256, out2b=256, out2c=1024, stride=1, use_branch1=False, **bn_param)
+      ResBody(net, from_layer, block_name, out2a=256, out2b=256, out2c=1024, stride=1, use_branch1=False, use_global_stats=use_global_stats)
       from_layer = 'res{}'.format(block_name)
 
-    ResBody(net, from_layer, '5a', out2a=512, out2b=512, out2c=2048, stride=2, use_branch1=True, **bn_param)
-    ResBody(net, 'res5a', '5b', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, **bn_param)
-    ResBody(net, 'res5b', '5c', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, **bn_param)
+    ResBody(net, from_layer, '5a', out2a=512, out2b=512, out2c=2048, stride=2, use_branch1=True, use_global_stats=use_global_stats)
+    ResBody(net, 'res5a', '5b', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, use_global_stats=use_global_stats)
+    ResBody(net, 'res5b', '5c', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, use_global_stats=use_global_stats)
 
     if use_pool5:
       net.pool5 = L.Pooling(net.res5c, pool=P.Pooling.AVE, global_pooling=True)
@@ -378,7 +380,7 @@ def ResNet101Body(net, from_layer, use_pool5=True, **bn_param):
     return net
 
 
-def ResNet152Body(net, from_layer, use_pool5=True, **bn_param):
+def ResNet152Body(net, from_layer, use_pool5=True, use_global_stats=False):
     conv_prefix = ''
     conv_postfix = ''
     bn_prefix = 'bn_'
@@ -386,36 +388,36 @@ def ResNet152Body(net, from_layer, use_pool5=True, **bn_param):
     scale_prefix = 'scale_'
     scale_postfix = ''
     ConvBNLayer(net, from_layer, 'conv1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=7, pad=3, stride=2,
+        num_output=64, kernel_size=7, pad=3, stride=2, use_global_stats=use_global_stats,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, **bn_param)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
 
     net.pool1 = L.Pooling(net.conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
 
-    ResBody(net, 'pool1', '2a', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=True, **bn_param)
-    ResBody(net, 'res2a', '2b', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False, **bn_param)
-    ResBody(net, 'res2b', '2c', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False, **bn_param)
+    ResBody(net, 'pool1', '2a', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=True, use_global_stats=use_global_stats)
+    ResBody(net, 'res2a', '2b', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False, use_global_stats=use_global_stats)
+    ResBody(net, 'res2b', '2c', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False, use_global_stats=use_global_stats)
 
-    ResBody(net, 'res2c', '3a', out2a=128, out2b=128, out2c=512, stride=2, use_branch1=True, **bn_param)
+    ResBody(net, 'res2c', '3a', out2a=128, out2b=128, out2c=512, stride=2, use_branch1=True, use_global_stats=use_global_stats)
 
     from_layer = 'res3a'
     for i in xrange(1, 8):
       block_name = '3b{}'.format(i)
-      ResBody(net, from_layer, block_name, out2a=128, out2b=128, out2c=512, stride=1, use_branch1=False, **bn_param)
+      ResBody(net, from_layer, block_name, out2a=128, out2b=128, out2c=512, stride=1, use_branch1=False, use_global_stats=use_global_stats)
       from_layer = 'res{}'.format(block_name)
 
-    ResBody(net, from_layer, '4a', out2a=256, out2b=256, out2c=1024, stride=2, use_branch1=True, **bn_param)
+    ResBody(net, from_layer, '4a', out2a=256, out2b=256, out2c=1024, stride=2, use_branch1=True, use_global_stats=use_global_stats)
 
     from_layer = 'res4a'
     for i in xrange(1, 36):
       block_name = '4b{}'.format(i)
-      ResBody(net, from_layer, block_name, out2a=256, out2b=256, out2c=1024, stride=1, use_branch1=False, **bn_param)
+      ResBody(net, from_layer, block_name, out2a=256, out2b=256, out2c=1024, stride=1, use_branch1=False, use_global_stats=use_global_stats)
       from_layer = 'res{}'.format(block_name)
 
-    ResBody(net, from_layer, '5a', out2a=512, out2b=512, out2c=2048, stride=2, use_branch1=True, **bn_param)
-    ResBody(net, 'res5a', '5b', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, **bn_param)
-    ResBody(net, 'res5b', '5c', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, **bn_param)
+    ResBody(net, from_layer, '5a', out2a=512, out2b=512, out2c=2048, stride=2, use_branch1=True, use_global_stats=use_global_stats)
+    ResBody(net, 'res5a', '5b', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, use_global_stats=use_global_stats)
+    ResBody(net, 'res5b', '5c', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, use_global_stats=use_global_stats)
 
     if use_pool5:
       net.pool5 = L.Pooling(net.res5c, pool=P.Pooling.AVE, global_pooling=True)
@@ -423,26 +425,23 @@ def ResNet152Body(net, from_layer, use_pool5=True, **bn_param):
     return net
 
 
-def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
+def InceptionV3Body(net, from_layer, output_pred=False):
   # scale is fixed to 1, thus we ignore it.
   use_scale = False
 
   out_layer = 'conv'
   ConvBNLayer(net, from_layer, out_layer, use_bn=True, use_relu=True,
-      num_output=32, kernel_size=3, pad=0, stride=2, use_scale=use_scale,
-      **bn_param)
+      num_output=32, kernel_size=3, pad=0, stride=2, use_scale=use_scale)
   from_layer = out_layer
 
   out_layer = 'conv_1'
   ConvBNLayer(net, from_layer, out_layer, use_bn=True, use_relu=True,
-      num_output=32, kernel_size=3, pad=0, stride=1, use_scale=use_scale,
-      **bn_param)
+      num_output=32, kernel_size=3, pad=0, stride=1, use_scale=use_scale)
   from_layer = out_layer
 
   out_layer = 'conv_2'
   ConvBNLayer(net, from_layer, out_layer, use_bn=True, use_relu=True,
-      num_output=64, kernel_size=3, pad=1, stride=1, use_scale=use_scale,
-      **bn_param)
+      num_output=64, kernel_size=3, pad=1, stride=1, use_scale=use_scale)
   from_layer = out_layer
 
   out_layer = 'pool'
@@ -452,14 +451,12 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
 
   out_layer = 'conv_3'
   ConvBNLayer(net, from_layer, out_layer, use_bn=True, use_relu=True,
-      num_output=80, kernel_size=1, pad=0, stride=1, use_scale=use_scale,
-      **bn_param)
+      num_output=80, kernel_size=1, pad=0, stride=1, use_scale=use_scale)
   from_layer = out_layer
 
   out_layer = 'conv_4'
   ConvBNLayer(net, from_layer, out_layer, use_bn=True, use_relu=True,
-      num_output=192, kernel_size=3, pad=0, stride=1, use_scale=use_scale,
-      **bn_param)
+      num_output=192, kernel_size=3, pad=0, stride=1, use_scale=use_scale)
   from_layer = out_layer
 
   out_layer = 'pool_1'
@@ -479,26 +476,26 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
     tower_name = '{}'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='conv', num_output=64, kernel_size=1, pad=0, stride=1),
-        ], **bn_param)
+        ])
     towers.append(tower)
     tower_name = '{}/tower'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='conv', num_output=48, kernel_size=1, pad=0, stride=1),
         dict(name='conv_1', num_output=64, kernel_size=5, pad=2, stride=1),
-        ], **bn_param)
+        ])
     towers.append(tower)
     tower_name = '{}/tower_1'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='conv', num_output=64, kernel_size=1, pad=0, stride=1),
         dict(name='conv_1', num_output=96, kernel_size=3, pad=1, stride=1),
         dict(name='conv_2', num_output=96, kernel_size=3, pad=1, stride=1),
-        ], **bn_param)
+        ])
     towers.append(tower)
     tower_name = '{}/tower_2'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='pool', pool=P.Pooling.AVE, kernel_size=3, pad=1, stride=1),
         dict(name='conv', num_output=tower_2_conv_num_output, kernel_size=1, pad=0, stride=1),
-        ], **bn_param)
+        ])
     towers.append(tower)
     out_layer = '{}/join'.format(out_layer)
     net[out_layer] = L.Concat(*towers, axis=1)
@@ -510,19 +507,19 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
   tower_name = '{}'.format(out_layer)
   tower = InceptionTower(net, from_layer, tower_name, [
       dict(name='conv', num_output=384, kernel_size=3, pad=0, stride=2),
-      ], **bn_param)
+      ])
   towers.append(tower)
   tower_name = '{}/tower'.format(out_layer)
   tower = InceptionTower(net, from_layer, tower_name, [
       dict(name='conv', num_output=64, kernel_size=1, pad=0, stride=1),
       dict(name='conv_1', num_output=96, kernel_size=3, pad=1, stride=1),
       dict(name='conv_2', num_output=96, kernel_size=3, pad=0, stride=2),
-      ], **bn_param)
+      ])
   towers.append(tower)
   tower_name = '{}'.format(out_layer)
   tower = InceptionTower(net, from_layer, tower_name, [
       dict(name='pool', pool=P.Pooling.MAX, kernel_size=3, pad=0, stride=2),
-      ], **bn_param)
+      ])
   towers.append(tower)
   out_layer = '{}/join'.format(out_layer)
   net[out_layer] = L.Concat(*towers, axis=1)
@@ -541,14 +538,14 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
     tower_name = '{}'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='conv', num_output=192, kernel_size=1, pad=0, stride=1),
-        ], **bn_param)
+        ])
     towers.append(tower)
     tower_name = '{}/tower'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='conv', num_output=num_output, kernel_size=1, pad=0, stride=1),
         dict(name='conv_1', num_output=num_output, kernel_size=[1, 7], pad=[0, 3], stride=[1, 1]),
         dict(name='conv_2', num_output=192, kernel_size=[7, 1], pad=[3, 0], stride=[1, 1]),
-        ], **bn_param)
+        ])
     towers.append(tower)
     tower_name = '{}/tower_1'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
@@ -557,13 +554,13 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
         dict(name='conv_2', num_output=num_output, kernel_size=[1, 7], pad=[0, 3], stride=[1, 1]),
         dict(name='conv_3', num_output=num_output, kernel_size=[7, 1], pad=[3, 0], stride=[1, 1]),
         dict(name='conv_4', num_output=192, kernel_size=[1, 7], pad=[0, 3], stride=[1, 1]),
-        ], **bn_param)
+        ])
     towers.append(tower)
     tower_name = '{}/tower_2'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='pool', pool=P.Pooling.AVE, kernel_size=3, pad=1, stride=1),
         dict(name='conv', num_output=192, kernel_size=1, pad=0, stride=1),
-        ], **bn_param)
+        ])
     towers.append(tower)
     out_layer = '{}/join'.format(out_layer)
     net[out_layer] = L.Concat(*towers, axis=1)
@@ -576,7 +573,7 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
   tower = InceptionTower(net, from_layer, tower_name, [
       dict(name='conv', num_output=192, kernel_size=1, pad=0, stride=1),
       dict(name='conv_1', num_output=320, kernel_size=3, pad=0, stride=2),
-      ], **bn_param)
+      ])
   towers.append(tower)
   tower_name = '{}/tower_1'.format(out_layer)
   tower = InceptionTower(net, from_layer, tower_name, [
@@ -584,12 +581,12 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
       dict(name='conv_1', num_output=192, kernel_size=[1, 7], pad=[0, 3], stride=[1, 1]),
       dict(name='conv_2', num_output=192, kernel_size=[7, 1], pad=[3, 0], stride=[1, 1]),
       dict(name='conv_3', num_output=192, kernel_size=3, pad=0, stride=2),
-      ], **bn_param)
+      ])
   towers.append(tower)
   tower_name = '{}'.format(out_layer)
   tower = InceptionTower(net, from_layer, tower_name, [
       dict(name='pool', pool=P.Pooling.MAX, kernel_size=3, pad=0, stride=2),
-      ], **bn_param)
+      ])
   towers.append(tower)
   out_layer = '{}/join'.format(out_layer)
   net[out_layer] = L.Concat(*towers, axis=1)
@@ -607,22 +604,22 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
     tower_name = '{}'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='conv', num_output=320, kernel_size=1, pad=0, stride=1),
-        ], **bn_param)
+        ])
     towers.append(tower)
 
     tower_name = '{}/tower'.format(out_layer)
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='conv', num_output=num_output, kernel_size=1, pad=0, stride=1),
-        ], **bn_param)
+        ])
     subtowers = []
     subtower_name = '{}/mixed'.format(tower_name)
     subtower = InceptionTower(net, '{}/conv'.format(tower_name), subtower_name, [
         dict(name='conv', num_output=num_output, kernel_size=[1, 3], pad=[0, 1], stride=[1, 1]),
-        ], **bn_param)
+        ])
     subtowers.append(subtower)
     subtower = InceptionTower(net, '{}/conv'.format(tower_name), subtower_name, [
         dict(name='conv_1', num_output=num_output, kernel_size=[3, 1], pad=[1, 0], stride=[1, 1]),
-        ], **bn_param)
+        ])
     subtowers.append(subtower)
     net[subtower_name] = L.Concat(*subtowers, axis=1)
     towers.append(net[subtower_name])
@@ -631,16 +628,16 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='conv', num_output=num_output2, kernel_size=1, pad=0, stride=1),
         dict(name='conv_1', num_output=num_output, kernel_size=3, pad=1, stride=1),
-        ], **bn_param)
+        ])
     subtowers = []
     subtower_name = '{}/mixed'.format(tower_name)
     subtower = InceptionTower(net, '{}/conv_1'.format(tower_name), subtower_name, [
         dict(name='conv', num_output=num_output, kernel_size=[1, 3], pad=[0, 1], stride=[1, 1]),
-        ], **bn_param)
+        ])
     subtowers.append(subtower)
     subtower = InceptionTower(net, '{}/conv_1'.format(tower_name), subtower_name, [
         dict(name='conv_1', num_output=num_output, kernel_size=[3, 1], pad=[1, 0], stride=[1, 1]),
-        ], **bn_param)
+        ])
     subtowers.append(subtower)
     net[subtower_name] = L.Concat(*subtowers, axis=1)
     towers.append(net[subtower_name])
@@ -649,7 +646,7 @@ def InceptionV3Body(net, from_layer, output_pred=False, **bn_param):
     tower = InceptionTower(net, from_layer, tower_name, [
         dict(name='pool', pool=pool, kernel_size=3, pad=1, stride=1),
         dict(name='conv', num_output=192, kernel_size=1, pad=0, stride=1),
-        ], **bn_param)
+        ])
     towers.append(tower)
     out_layer = '{}/join'.format(out_layer)
     net[out_layer] = L.Concat(*towers, axis=1)
@@ -666,8 +663,7 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
         use_objectness=False, normalizations=[], use_batchnorm=True, lr_mult=1,
         use_scale=True, min_sizes=[], max_sizes=[], prior_variance = [0.1],
         aspect_ratios=[], steps=[], share_location=True, flip=True, clip=True,
-        inter_layer_depth=[], kernel_size=1, pad=0, conf_postfix='', loc_postfix='',
-        **bn_param):
+        inter_layer_depth=[], kernel_size=1, pad=0, conf_postfix='', loc_postfix=''):
     assert num_classes, "must provide num_classes"
     assert num_classes > 0, "num_classes must be positive number"
     if normalizations:
@@ -705,7 +701,7 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
             if inter_layer_depth[i] > 0:
                 inter_name = "{}_inter".format(from_layer)
                 ConvBNLayer(net, from_layer, inter_name, use_bn=use_batchnorm, use_relu=True, lr_mult=lr_mult,
-                      num_output=inter_layer_depth[i], kernel_size=3, pad=1, stride=1, **bn_param)
+                      num_output=inter_layer_depth[i], kernel_size=3, pad=1, stride=1)
                 from_layer = inter_name
 
         # Estimate number of priors per location given provided parameters.
@@ -740,7 +736,7 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
         if not share_location:
             num_loc_output *= num_classes
         ConvBNLayer(net, from_layer, name, use_bn=use_batchnorm, use_relu=False, lr_mult=lr_mult,
-            num_output=num_loc_output, kernel_size=kernel_size, pad=pad, stride=1, **bn_param)
+            num_output=num_loc_output, kernel_size=kernel_size, pad=pad, stride=1)
         permute_name = "{}_perm".format(name)
         net[permute_name] = L.Permute(net[name], order=[0, 2, 3, 1])
         flatten_name = "{}_flat".format(name)
@@ -751,7 +747,7 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
         name = "{}_mbox_conf{}".format(from_layer, conf_postfix)
         num_conf_output = num_priors_per_location * num_classes;
         ConvBNLayer(net, from_layer, name, use_bn=use_batchnorm, use_relu=False, lr_mult=lr_mult,
-            num_output=num_conf_output, kernel_size=kernel_size, pad=pad, stride=1, **bn_param)
+            num_output=num_conf_output, kernel_size=kernel_size, pad=pad, stride=1)
         permute_name = "{}_perm".format(name)
         net[permute_name] = L.Permute(net[name], order=[0, 2, 3, 1])
         flatten_name = "{}_flat".format(name)
@@ -775,7 +771,7 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
             name = "{}_mbox_objectness".format(from_layer)
             num_obj_output = num_priors_per_location * 2;
             ConvBNLayer(net, from_layer, name, use_bn=use_batchnorm, use_relu=False, lr_mult=lr_mult,
-                num_output=num_obj_output, kernel_size=kernel_size, pad=pad, stride=1, **bn_param)
+                num_output=num_obj_output, kernel_size=kernel_size, pad=pad, stride=1)
             permute_name = "{}_perm".format(name)
             net[permute_name] = L.Permute(net[name], order=[0, 2, 3, 1])
             flatten_name = "{}_flat".format(name)
