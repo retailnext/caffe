@@ -366,9 +366,6 @@ void ApplyNMS(const vector<NormalizedBBox>& bboxes, const vector<float>& scores,
       const float threshold, const int top_k, const bool reuse_overlaps,
       map<int, map<int, float> >* overlaps, vector<int>* indices);
 
-void ApplyNMS(const vector<NormalizedBBox>& bboxes, const vector<float>& scores,
-      const float threshold, const int top_k, vector<int>* indices);
-
 void ApplyNMS(const bool* overlapped, const int num, vector<int>* indices);
 
 // Do non maximum suppression given bboxes and scores.
