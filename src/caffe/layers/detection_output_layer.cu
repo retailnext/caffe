@@ -28,10 +28,9 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
   bbox_preds.ReshapeLike(*(bottom[0]));
   Dtype* bbox_data = bbox_preds.mutable_gpu_data();
   const int loc_count = bbox_preds.count();
-  const bool clip_bbox = false;
   DecodeBBoxesGPU<Dtype>(loc_count, loc_data, prior_data, code_type_,
       variance_encoded_in_target_, num_priors_, share_location_,
-      num_loc_classes_, background_label_id_, clip_bbox, bbox_data);
+      num_loc_classes_, background_label_id_, bbox_data);
   // Retrieve all decoded location predictions.
   const Dtype* bbox_cpu_data = bbox_preds.cpu_data();
   vector<LabelBBox> all_decode_bboxes;

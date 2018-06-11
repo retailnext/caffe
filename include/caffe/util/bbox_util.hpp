@@ -101,14 +101,14 @@ bool MeetEmitConstraint(const NormalizedBBox& src_bbox,
 // Decode a bbox according to a prior bbox.
 void DecodeBBox(const NormalizedBBox& prior_bbox,
     const vector<float>& prior_variance, const CodeType code_type,
-    const bool variance_encoded_in_target, const bool clip_bbox,
-    const NormalizedBBox& bbox, NormalizedBBox* decode_bbox);
+    const bool variance_encoded_in_target, const NormalizedBBox& bbox,
+    NormalizedBBox* decode_bbox);
 
 // Decode a set of bboxes according to a set of prior bboxes.
 void DecodeBBoxes(const vector<NormalizedBBox>& prior_bboxes,
     const vector<vector<float> >& prior_variances,
     const CodeType code_type, const bool variance_encoded_in_target,
-    const bool clip_bbox, const vector<NormalizedBBox>& bboxes,
+    const vector<NormalizedBBox>& bboxes,
     vector<NormalizedBBox>* decode_bboxes);
 
 // Decode all bboxes in a batch.
@@ -118,7 +118,7 @@ void DecodeBBoxesAll(const vector<LabelBBox>& all_loc_pred,
     const int num, const bool share_location,
     const int num_loc_classes, const int background_label_id,
     const CodeType code_type, const bool variance_encoded_in_target,
-    const bool clip, vector<LabelBBox>* all_decode_bboxes);
+    vector<LabelBBox>* all_decode_bboxes);
 
 // Match prediction bboxes with ground truth bboxes.
 void MatchBBox(const vector<NormalizedBBox>& gt,
@@ -300,7 +300,7 @@ void DecodeBBoxesGPU(const int nthreads,
           const CodeType code_type, const bool variance_encoded_in_target,
           const int num_priors, const bool share_location,
           const int num_loc_classes, const int background_label_id,
-          const bool clip_bbox, Dtype* bbox_data);
+          Dtype* bbox_data);
 
 template <typename Dtype>
 void PermuteDataGPU(const int nthreads,

@@ -175,11 +175,9 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
 
   // Decode all loc predictions to bboxes.
   vector<LabelBBox> all_decode_bboxes;
-  const bool clip_bbox = false;
   DecodeBBoxesAll(all_loc_preds, prior_bboxes, prior_variances, num,
                   share_location_, num_loc_classes_, background_label_id_,
-                  code_type_, variance_encoded_in_target_, clip_bbox,
-                  &all_decode_bboxes);
+                  code_type_, variance_encoded_in_target_, &all_decode_bboxes);
 
   int num_kept = 0;
   vector<map<int, vector<int> > > all_indices;
