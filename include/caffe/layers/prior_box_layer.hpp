@@ -23,9 +23,8 @@ class PriorBoxLayer : public Layer<Dtype> {
   /**
    * @param param provides PriorBoxParameter prior_box_param,
    *     with PriorBoxLayer options:
-   *   - min_size (\b minimum box size in pixels. can be multiple. required!).
-   *   - max_size (\b maximum box size in pixels. can be ignored or same as the
-   *   # of min_size.).
+   *   - min_size (\b minimum box size in pixels. required!).
+   *   - max_size (\b maximum box size in pixels. required!).
    *   - aspect_ratio (\b optional aspect ratios of the boxes. can be multiple).
    *   - flip (\b optional bool, default true).
    *     if set, flip the aspect ratio.
@@ -63,8 +62,8 @@ class PriorBoxLayer : public Layer<Dtype> {
     return;
   }
 
-  vector<float> min_sizes_;
-  vector<float> max_sizes_;
+  float min_size_;
+  float max_size_;
   vector<float> aspect_ratios_;
   bool flip_;
   int num_priors_;
