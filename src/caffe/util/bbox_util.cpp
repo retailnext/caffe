@@ -121,6 +121,9 @@ void LocateBBox(const NormalizedBBox& src_bbox, const NormalizedBBox& bbox,
   loc_bbox->set_xmax(src_bbox.xmin() + bbox.xmax() * src_width);
   loc_bbox->set_ymax(src_bbox.ymin() + bbox.ymax() * src_height);
   loc_bbox->set_difficult(bbox.difficult());
+  loc_bbox->set_orientation(bbox.orientation());
+  //loc_bbox->set_age(bbox.age());
+  //loc_bbox->set_gender(bbox.gender());
 }
 
 bool ProjectBBox(const NormalizedBBox& src_bbox, const NormalizedBBox& bbox,
@@ -136,6 +139,8 @@ bool ProjectBBox(const NormalizedBBox& src_bbox, const NormalizedBBox& bbox,
   proj_bbox->set_xmax((bbox.xmax() - src_bbox.xmin()) / src_width);
   proj_bbox->set_ymax((bbox.ymax() - src_bbox.ymin()) / src_height);
   proj_bbox->set_difficult(bbox.difficult());
+  proj_bbox->set_orientation(bbox.orientation()); // Added by Dong Liu for MTL
+  //proj_bbox->set_gender(bbox.gender()); //Added by Dong Liu for MTL
   ClipBBox(*proj_bbox, proj_bbox);
   if (BBoxSize(*proj_bbox) > 0) {
     return true;
@@ -536,13 +541,20 @@ void MatchBBox(const vector<NormalizedBBox>& gt_bboxes,
   return;
 }
 
+
+// called in the function
+//map<int, LabelBBox> all_gt_bboxes;
+//  GetGroundTruth(gt_data, bottom[1]->height(), background_label_id_,
+//                 true, &all_gt_bboxes);
+
 template <typename Dtype>
 void GetGroundTruth(const Dtype* gt_data, const int num_gt,
       const int background_label_id, const bool use_difficult_gt,
       map<int, vector<NormalizedBBox> >* all_gt_bboxes) {
   all_gt_bboxes->clear();
   for (int i = 0; i < num_gt; ++i) {
-    int start_idx = i * 8;
+    // int start_idx = i * 8; commented by Dong Liu for MTL
+    int start_idx = i * 9; //Dong Liu for MTL
     int item_id = gt_data[start_idx];
     if (item_id == -1) {
       continue;
@@ -561,6 +573,8 @@ void GetGroundTruth(const Dtype* gt_data, const int num_gt,
     bbox.set_ymin(gt_data[start_idx + 4]);
     bbox.set_xmax(gt_data[start_idx + 5]);
     bbox.set_ymax(gt_data[start_idx + 6]);
+    bbox.set_orientation(gt_data[start_idx + 8]); //Dong Liu for MTL
+    //bbox.set_gender(gt_data[start_idx + 9]); //Dong Liu for MTL
     bbox.set_difficult(difficult);
     float bbox_size = BBoxSize(bbox);
     bbox.set_size(bbox_size);
@@ -582,7 +596,7 @@ void GetGroundTruth(const Dtype* gt_data, const int num_gt,
       map<int, LabelBBox>* all_gt_bboxes) {
   all_gt_bboxes->clear();
   for (int i = 0; i < num_gt; ++i) {
-    int start_idx = i * 8;
+    int start_idx = i * 9; // change 8 into 10 for MTL
     int item_id = gt_data[start_idx];
     if (item_id == -1) {
       break;
@@ -600,6 +614,8 @@ void GetGroundTruth(const Dtype* gt_data, const int num_gt,
     bbox.set_ymin(gt_data[start_idx + 4]);
     bbox.set_xmax(gt_data[start_idx + 5]);
     bbox.set_ymax(gt_data[start_idx + 6]);
+    bbox.set_orientation(gt_data[start_idx + 8]); //Dong Liu for MTL
+    //bbox.set_gender(gt_data[start_idx + 9]); //Dong Liu for MTL
     bbox.set_difficult(difficult);
     float bbox_size = BBoxSize(bbox);
     bbox.set_size(bbox_size);
@@ -614,6 +630,234 @@ template void GetGroundTruth(const float* gt_data, const int num_gt,
 template void GetGroundTruth(const double* gt_data, const int num_gt,
       const int background_label_id, const bool use_difficult_gt,
       map<int, LabelBBox>* all_gt_bboxes);
+
+//Added by Dong Liu for MTL
+/*template <typename Dtype>
+void GetAgeGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes) {
+  all_gt_bboxes->clear();
+  for (int i = 0; i < num_gt; ++i) {
+    int start_idx = i * 10; // change 8 into 10 for MTL
+    int item_id = gt_data[start_idx];
+    if (item_id == -1) {
+      break;
+    }
+    NormalizedBBox bbox;
+    int label = gt_data[start_idx + 8];
+    CHECK_NE(background_label_id, label)
+        << "Found background label in the dataset.";
+    bool difficult = static_cast<bool>(gt_data[start_idx + 7]);
+    if (!use_difficult_gt && difficult) {
+      // Skip reading difficult ground truth.
+      continue;
+    }
+    bbox.set_label(gt_data[start_idx + 1]);
+    bbox.set_xmin(gt_data[start_idx + 3]);
+    bbox.set_ymin(gt_data[start_idx + 4]);
+    bbox.set_xmax(gt_data[start_idx + 5]);
+    bbox.set_ymax(gt_data[start_idx + 6]);
+    bbox.set_age(gt_data[start_idx + 8]); //Dong Liu for MTL
+    bbox.set_gender(gt_data[start_idx + 9]); //Dong Liu for MTL
+
+    bbox.set_difficult(difficult);
+    float bbox_size = BBoxSize(bbox);
+    bbox.set_size(bbox_size);
+    (*all_gt_bboxes)[item_id][label].push_back(bbox);
+  }
+}*/
+
+/*// Explicit initialization.
+template void GetAgeGroundTruth(const float* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes);
+template void GetAgeGroundTruth(const double* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes);*/
+
+/*
+//Added by Dong Liu for MTL
+template <typename Dtype>
+void GetGenderGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes) {
+  all_gt_bboxes->clear();
+  for (int i = 0; i < num_gt; ++i) {
+    int start_idx = i * 10; // change 8 into 10 for MTL
+    int item_id = gt_data[start_idx];
+    if (item_id == -1) {
+      break;
+    }
+    NormalizedBBox bbox;
+    int label = gt_data[start_idx + 9];
+    CHECK_NE(background_label_id, label)
+        << "Found gender background label in the dataset.";
+    bool difficult = static_cast<bool>(gt_data[start_idx + 7]);
+    if (!use_difficult_gt && difficult) {
+      // Skip reading difficult ground truth.
+      continue;
+    }
+    bbox.set_label(gt_data[start_idx + 1]);
+    bbox.set_xmin(gt_data[start_idx + 3]);
+    bbox.set_ymin(gt_data[start_idx + 4]);
+    bbox.set_xmax(gt_data[start_idx + 5]);
+    bbox.set_ymax(gt_data[start_idx + 6]);
+    bbox.set_age(gt_data[start_idx + 8]); //Dong Liu for MTL
+    bbox.set_gender(gt_data[start_idx + 9]); //Dong Liu for MTL
+
+    bbox.set_difficult(difficult);
+    float bbox_size = BBoxSize(bbox);
+    bbox.set_size(bbox_size);
+    (*all_gt_bboxes)[item_id][label].push_back(bbox);
+  }
+}
+
+// Explicit initialization.
+template void GetGenderGroundTruth(const float* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes);
+template void GetGenderGroundTruth(const double* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes);
+
+
+
+template <typename Dtype>
+void GetGenderGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, vector<NormalizedBBox> >* all_gt_bboxes) {
+  all_gt_bboxes->clear();
+  for (int i = 0; i < num_gt; ++i) {
+    // int start_idx = i * 8; commented by Dong Liu for MTL
+    int start_idx = i * 10; //Dong Liu for MTL
+    int item_id = gt_data[start_idx];
+    if (item_id == -1) {
+      continue;
+    }
+    int label = gt_data[start_idx + 9];
+    CHECK_NE(background_label_id, label)
+        << "Found gender background label in the dataset.";
+    bool difficult = static_cast<bool>(gt_data[start_idx + 7]);
+    if (!use_difficult_gt && difficult) {
+      // Skip reading difficult ground truth.
+      continue;
+    }
+    NormalizedBBox bbox;
+    bbox.set_gender(label);
+    bbox.set_xmin(gt_data[start_idx + 3]);
+    bbox.set_ymin(gt_data[start_idx + 4]);
+    bbox.set_xmax(gt_data[start_idx + 5]);
+    bbox.set_ymax(gt_data[start_idx + 6]);
+    bbox.set_age(gt_data[start_idx + 8]); //Dong Liu for MTL
+    bbox.set_gender(gt_data[start_idx + 9]);
+    bbox.set_label(gt_data[start_idx + 1]); //Dong Liu for MTL
+    bbox.set_difficult(difficult);
+    float bbox_size = BBoxSize(bbox);
+    bbox.set_size(bbox_size);
+    (*all_gt_bboxes)[item_id].push_back(bbox);
+  }
+}
+
+// Explicit initialization.
+template void GetGenderGroundTruth(const float* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, vector<NormalizedBBox> >* all_gt_bboxes);
+template void GetGenderGroundTruth(const double* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, vector<NormalizedBBox> >* all_gt_bboxes);
+*/
+
+//added on April 6th 2017 for age MTL
+//Added by Dong Liu for MTL
+template <typename Dtype>
+void GetAgeGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes) {
+  all_gt_bboxes->clear();
+  for (int i = 0; i < num_gt; ++i) {
+    int start_idx = i * 9; // change 8 into 10 for MTL
+    int item_id = gt_data[start_idx];
+    if (item_id == -1) {
+      break;
+    }
+    NormalizedBBox bbox;
+    int label = gt_data[start_idx + 8];
+    CHECK_NE(background_label_id, label)
+        << "Found age background label in the dataset.";
+    bool difficult = static_cast<bool>(gt_data[start_idx + 7]);
+    if (!use_difficult_gt && difficult) {
+      // Skip reading difficult ground truth.
+      continue;
+    }
+    bbox.set_label(gt_data[start_idx + 1]);
+    bbox.set_xmin(gt_data[start_idx + 3]);
+    bbox.set_ymin(gt_data[start_idx + 4]);
+    bbox.set_xmax(gt_data[start_idx + 5]);
+    bbox.set_ymax(gt_data[start_idx + 6]);
+    bbox.set_orientation(gt_data[start_idx + 8]); //Dong Liu for MTL
+
+
+    bbox.set_difficult(difficult);
+    float bbox_size = BBoxSize(bbox);
+    bbox.set_size(bbox_size);
+    (*all_gt_bboxes)[item_id][label].push_back(bbox);
+  }
+}
+
+// Explicit initialization.
+template void GetAgeGroundTruth(const float* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes);
+template void GetAgeGroundTruth(const double* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes);
+
+
+
+template <typename Dtype>
+void GetAgeGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, vector<NormalizedBBox> >* all_gt_bboxes) {
+  all_gt_bboxes->clear();
+  for (int i = 0; i < num_gt; ++i) {
+    // int start_idx = i * 8; commented by Dong Liu for MTL
+    int start_idx = i * 9; //Dong Liu for MTL
+    int item_id = gt_data[start_idx];
+    if (item_id == -1) {
+      continue;
+    }
+    int label = gt_data[start_idx + 1];
+    CHECK_NE(background_label_id, label)
+        << "Found age background label in the dataset.";
+    bool difficult = static_cast<bool>(gt_data[start_idx + 7]);
+    if (!use_difficult_gt && difficult) {
+      // Skip reading difficult ground truth.
+      continue;
+    }
+    NormalizedBBox bbox;
+    //bbox.set_gender(label);
+    bbox.set_xmin(gt_data[start_idx + 3]);
+    bbox.set_ymin(gt_data[start_idx + 4]);
+    bbox.set_xmax(gt_data[start_idx + 5]);
+    bbox.set_ymax(gt_data[start_idx + 6]);
+    bbox.set_orientation(gt_data[start_idx + 8]); //Dong Liu for MTL
+    //bbox.set_gender(gt_data[start_idx + 9]);
+    bbox.set_label(gt_data[start_idx + 1]); //Dong Liu for MTL
+    bbox.set_difficult(difficult);
+    float bbox_size = BBoxSize(bbox);
+    bbox.set_size(bbox_size);
+    (*all_gt_bboxes)[item_id].push_back(bbox);
+  }
+}
+
+// Explicit initialization.
+template void GetAgeGroundTruth(const float* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, vector<NormalizedBBox> >* all_gt_bboxes);
+template void GetAgeGroundTruth(const double* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, vector<NormalizedBBox> >* all_gt_bboxes);
+
 
 template <typename Dtype>
 void GetLocPredictions(const Dtype* loc_data, const int num,
@@ -668,6 +912,66 @@ void GetConfidenceScores(const Dtype* conf_data, const int num,
     conf_data += num_preds_per_class * num_classes;
   }
 }
+
+// added by Dong Liu for MTL
+/*template <typename Dtype>
+void GetAGScores(const Dtype* conf_data, const int num,
+      const int num_preds_per_class, const int num_classes,
+      vector<map<int, vector<float> > >* conf_preds) {
+  conf_preds->clear();
+  conf_preds->resize(num);
+  for (int i = 0; i < num; ++i) {
+    map<int, vector<float> >& label_scores = (*conf_preds)[i];
+    for (int p = 0; p < num_preds_per_class; ++p) {
+      int start_idx = p * num_classes;
+      for (int c = 0; c < num_classes; ++c) {
+        label_scores[p].push_back(conf_data[start_idx + c]);
+      }
+    }
+    conf_data += num_preds_per_class * num_classes;
+  }
+}*/
+
+
+template <typename Dtype>
+void GetAGScores(const Dtype* conf_data, const int num,
+      const int num_preds_per_class, const int num_classes,
+      vector<map<int, vector<float> > >* conf_preds) {
+  conf_preds->clear();
+  conf_preds->resize(num);
+  for (int i = 0; i < num; ++i) {
+    map<int, vector<float> >& label_scores = (*conf_preds)[i];
+    for(int p = 0; p < num_preds_per_class; ++p) {
+       for(int c = 0; c < num_classes; ++c) {
+    	 int start_idx = c * num_preds_per_class;
+    	 label_scores[p].push_back(conf_data[start_idx + p]);
+       }
+    }
+   conf_data += num_preds_per_class * num_classes;
+  }
+}
+
+
+template void GetAGScores(const float* conf_data, const int num,
+      const int num_preds_per_class, const int num_classes,
+      vector<map<int, vector<float> > >* conf_preds);
+
+template void GetAGScores(const double* conf_data, const int num,
+      const int num_preds_per_class, const int num_classes,
+      vector<map<int, vector<float> > >* conf_preds);
+
+
+//Added by Dong Liu for MTL
+int getIndexOfLargestElement(const vector<float>& arr, int size) {
+    int largestIndex = 1; //change 0 into 1 on MArch 10th 2017
+    for (int index = largestIndex; index < size; index++) {
+        if (arr[largestIndex] < arr[index]) {
+            largestIndex = index;
+        }
+    }
+    return largestIndex;
+}
+
 
 // Explicit initialization.
 template void GetConfidenceScores(const float* conf_data, const int num,
@@ -801,7 +1105,7 @@ void GetDetectionResults(const Dtype* det_data, const int num_det,
       map<int, map<int, vector<NormalizedBBox> > >* all_detections) {
   all_detections->clear();
   for (int i = 0; i < num_det; ++i) {
-    int start_idx = i * 7;
+    int start_idx = i * 9; //Change 7 into 11 by Dong Liu for MTL
     int item_id = det_data[start_idx];
     if (item_id == -1) {
       continue;
@@ -810,11 +1114,14 @@ void GetDetectionResults(const Dtype* det_data, const int num_det,
     CHECK_NE(background_label_id, label)
         << "Found background label in the detection results.";
     NormalizedBBox bbox;
+    // [image_id, label, confidence, xmin, ymin, xmax, ymax, age, ascore]
     bbox.set_score(det_data[start_idx + 2]);
     bbox.set_xmin(det_data[start_idx + 3]);
     bbox.set_ymin(det_data[start_idx + 4]);
     bbox.set_xmax(det_data[start_idx + 5]);
     bbox.set_ymax(det_data[start_idx + 6]);
+    bbox.set_orientation(det_data[start_idx + 7]); //Added by Dong Liu for MTL
+    bbox.set_oscore(det_data[start_idx + 8]); //Added by Dong Liu for MTL
     float bbox_size = BBoxSize(bbox);
     bbox.set_size(bbox_size);
     (*all_detections)[item_id][label].push_back(bbox);
@@ -828,6 +1135,48 @@ template void GetDetectionResults(const float* det_data, const int num_det,
 template void GetDetectionResults(const double* det_data, const int num_det,
       const int background_label_id,
       map<int, map<int, vector<NormalizedBBox> > >* all_detections);
+
+
+//Added on April 10th 2017
+//******************************** Below added by Dong Liu for evaluating age
+template <typename Dtype>
+void GetAgeDetectionResults(const Dtype* det_data, const int num_det,
+      const int background_label_id,
+      map<int, map<int, vector<NormalizedBBox> > >* all_detections) {
+  all_detections->clear();
+  for (int i = 0; i < num_det; ++i) {
+    int start_idx = i * 9; //Change 7 into 11 by Dong Liu for MTL
+    int item_id = det_data[start_idx];
+    if (item_id == -1) {
+      continue;
+    }
+    int label = det_data[start_idx + 7];
+    //CHECK_NE(background_label_id, label)
+    //    << "Found background label in the detection results."; commented on March 10th 2017
+    NormalizedBBox bbox;
+    // [0:image_id, 1:label, 2:confidence, 3:xmin, 4:ymin, 5:xmax, 6:ymax, 7:orientation, 8:oscore]
+    bbox.set_label(det_data[start_idx + 1]);
+    bbox.set_score(det_data[start_idx + 2]);
+    bbox.set_xmin(det_data[start_idx + 3]);
+    bbox.set_ymin(det_data[start_idx + 4]);
+    bbox.set_xmax(det_data[start_idx + 5]);
+    bbox.set_ymax(det_data[start_idx + 6]);
+    bbox.set_orientation(det_data[start_idx + 7]); //Added by Dong Liu for MTL
+    bbox.set_oscore(det_data[start_idx + 8]); //Added by Dong Liu for MTL
+    float bbox_size = BBoxSize(bbox);
+    bbox.set_size(bbox_size);
+    (*all_detections)[item_id][label].push_back(bbox);
+  }
+}
+
+// Explicit initialization.
+template void GetAgeDetectionResults(const float* det_data, const int num_det,
+      const int background_label_id,
+      map<int, map<int, vector<NormalizedBBox> > >* all_detections);
+template void GetAgeDetectionResults(const double* det_data, const int num_det,
+      const int background_label_id,
+      map<int, map<int, vector<NormalizedBBox> > >* all_detections);
+
 
 void GetTopKScoreIndex(const vector<float>& scores, const vector<int>& indices,
       const int top_k, vector<pair<float, int> >* score_index_vec) {
@@ -1159,7 +1508,7 @@ void VisualizeBBox(const vector<cv::Mat>& images, const Blob<Dtype>* detections,
                    const float threshold, const vector<cv::Scalar>& colors,
                    const map<int, string>& label_to_display_name) {
   // Retrieve detections.
-  CHECK_EQ(detections->width(), 7);
+  CHECK_EQ(detections->width(), 9);
   const int num_det = detections->height();
   const int num_img = images.size();
   if (num_det == 0 || num_img == 0) {
@@ -1174,19 +1523,33 @@ void VisualizeBBox(const vector<cv::Mat>& images, const Blob<Dtype>* detections,
   const int height = images[0].rows;
   vector<LabelBBox> all_detections(num_img);
   for (int i = 0; i < num_det; ++i) {
-    const int img_idx = detections_data[i * 7];
+    const int img_idx = detections_data[i * 9];
     CHECK_LT(img_idx, num_img);
-    const int label = detections_data[i * 7 + 1];
-    const float score = detections_data[i * 7 + 2];
+    const int label = detections_data[i * 9 + 1];
+    const float score = detections_data[i * 9 + 2];
     if (score < threshold) {
       continue;
     }
     NormalizedBBox bbox;
-    bbox.set_xmin(detections_data[i * 7 + 3] * width);
-    bbox.set_ymin(detections_data[i * 7 + 4] * height);
-    bbox.set_xmax(detections_data[i * 7 + 5] * width);
-    bbox.set_ymax(detections_data[i * 7 + 6] * height);
+    bbox.set_xmin(detections_data[i * 9 + 3] * width);
+    bbox.set_ymin(detections_data[i * 9 + 4] * height);
+    bbox.set_xmax(detections_data[i * 9 + 5] * width);
+    bbox.set_ymax(detections_data[i * 9 + 6] * height);
     bbox.set_score(score);
+    // 
+    
+    const int orientation = detections_data[i * 9 + 7];
+    const float oscore = detections_data[i * 9 + 8];
+
+    //const int gender = detections_data[i * 11 + 9]; // added on March 13th 2017
+    //const float gscore = detections_data[i * 11 + 10]; // added on March 13th 2017
+
+    bbox.set_orientation(orientation);
+    bbox.set_oscore(oscore);
+
+    //bbox.set_gender(gender); // added on March 13th 2017
+    //bbox.set_gscore(gscore); // added on March 13th 2017
+    
     all_detections[img_idx][label].push_back(bbox);
   }
 
@@ -1223,7 +1586,43 @@ void VisualizeBBox(const vector<cv::Mat>& images, const Blob<Dtype>* detections,
         cv::rectangle(image, top_left_pt, bottom_right_pt, color, 4);
         cv::Point bottom_left_pt(bboxes[j].xmin(), bboxes[j].ymax());
         snprintf(buffer, sizeof(buffer), "%s: %.2f", label_name.c_str(),
-                 bboxes[j].score());
+                  bboxes[j].score()); // commented by Dong Liu on March 13th 2017
+        
+        /*
+        string gender; 
+        
+        if(bboxes[j].gender()==1)
+        	gender = "F";
+        else if(bboxes[j].gender()==2)
+            gender = "M";
+        
+
+       string orientation;
+
+       if(bboxes[j].orientation()==1)
+    	   orientation = "0-45";
+       else if(bboxes[j].orientation()==2)
+    	   orientation = "45-90";
+       else if(bboxes[j].orientation()==3)
+    	   orientation = "90-135";
+       else if(bboxes[j].orientation()==4)
+    	   orientation = "135-180";
+       else if(bboxes[j].orientation()==5)
+    	   orientation = "180-225";
+       else if(bboxes[j].orientation()==6)
+    	   orientation = "225-270";
+       else if(bboxes[j].orientation()==7)
+    	   orientation = "270-315";
+       else if(bboxes[j].orientation()==8)
+    	   orientation = "315-360";
+       else if(bboxes[j].orientation()==9)
+    	   orientation = "";
+
+
+        snprintf(buffer, sizeof(buffer), "%s: %.2f, %s: %.2f, %s: %.2f", label_name.c_str(),
+                 bboxes[j].score(), orientation.c_str(), bboxes[j].oscore()); // added by Dong Liu on March 13th 2017
+         */
+
         cv::Size text = cv::getTextSize(buffer, fontface, scale, thickness,
                                         &baseline);
         cv::rectangle(
@@ -1242,6 +1641,201 @@ void VisualizeBBox(const vector<cv::Mat>& images, const Blob<Dtype>* detections,
   start_clock = clock();
 }
 
+template <typename Dtype>
+void VisualizeBBox(const vector<cv::Mat>& images, const Blob<Dtype>* detections,
+                   const float person_threshold, const float reach_threshold, const float crouch_threshold, const float crouch_reach_threshold, const float arm_threshold,
+                   const vector<cv::Scalar>& colors, const map<int, string>& label_to_display_name, const string frame_output_directory, const int id) {
+  // Retrieve detections.
+  CHECK_EQ(detections->width(), 9);
+  const int num_det = detections->height();
+  const int num_img = images.size();
+  if (num_det == 0 || num_img == 0) {
+    return;
+  }
+  // Comute FPS.
+  float fps = num_img / (static_cast<double>(clock() - start_clock) /
+          CLOCKS_PER_SEC);
+
+  const Dtype* detections_data = detections->cpu_data();
+  const int width = images[0].cols;
+  const int height = images[0].rows;
+  vector<LabelBBox> all_detections(num_img);
+  for (int i = 0; i < num_det; ++i) {
+    const int img_idx = detections_data[i * 9];
+    CHECK_LT(img_idx, num_img);
+    const int label = detections_data[i * 9 + 1];
+    const float score = detections_data[i * 9 + 2];
+    //Orignial, changed by Dong
+    //if (label!=5 && score < threshold) {
+    //  continue;
+    //} //commented by Dong Liu Nov 22 nd
+
+    if(label==5 && score < arm_threshold) {
+     continue;
+    }
+
+    //below added on Nov 22 and
+    if(label==3 && score < crouch_threshold) {
+         continue;
+    }
+
+    if(label==1 && score < person_threshold) {
+             continue;
+    }
+
+    if(label==2 && score < reach_threshold) {
+                 continue;
+     }
+
+    if(label==4 && score < crouch_reach_threshold) {
+                     continue;
+     }
+
+
+    /*item {
+      name: "Person"
+      label: 1
+      display_name: "Person"
+    }
+    item {
+      name: "PersonReach"
+      label: 2
+      display_name: "PersonReach"
+    }
+    item {
+      name: "PersonCrouch"
+      label: 3
+      display_name: "PersonCrouch"
+    }
+    item {
+      name: "PersonCrouchReach"
+      label: 4
+      display_name: "PersonCrouchReach"
+    }
+    item {
+      name: "Arm"
+      label: 5
+      display_name: "Arm"
+    }*/
+
+
+
+
+
+    NormalizedBBox bbox;
+    bbox.set_xmin(detections_data[i * 9 + 3] * width);
+    bbox.set_ymin(detections_data[i * 9 + 4] * height);
+    bbox.set_xmax(detections_data[i * 9 + 5] * width);
+    bbox.set_ymax(detections_data[i * 9 + 6] * height);
+    bbox.set_score(score);
+    
+    const int orientation = detections_data[i * 9 + 7];
+    const float oscore = detections_data[i * 9 + 8];
+
+    bbox.set_orientation(orientation);
+    bbox.set_oscore(oscore);
+    
+    all_detections[img_idx][label].push_back(bbox);
+  }
+
+  int fontface = cv::FONT_HERSHEY_SIMPLEX;
+  double scale = 1;
+  int thickness = 2;
+  int baseline = 0;
+  char buffer[50];
+  for (int i = 0; i < num_img; ++i) {
+    cv::Mat image = images[i];
+    // Show FPS.
+    snprintf(buffer, sizeof(buffer), "FPS: %.2f", fps);
+    cv::Size text = cv::getTextSize(buffer, fontface, scale, thickness,
+                                    &baseline);
+    cv::rectangle(image, cv::Point(0, 0),
+                  cv::Point(text.width, text.height + baseline),
+                  CV_RGB(255, 255, 255), CV_FILLED);
+    cv::putText(image, buffer, cv::Point(0, text.height + baseline / 2.),
+                fontface, scale, CV_RGB(0, 0, 0), thickness, 8);
+    // Draw bboxes.
+    for (map<int, vector<NormalizedBBox> >::iterator it =
+         all_detections[i].begin(); it != all_detections[i].end(); ++it) {
+      int label = it->first;
+      string label_name = "Unknown";
+      if (label_to_display_name.find(label) != label_to_display_name.end()) {
+        label_name = label_to_display_name.find(label)->second;
+      }
+      CHECK_LT(label, colors.size()); //commented by Dong Liu
+      const cv::Scalar& color = colors[label]; //commented by Dong Liu
+       
+      
+      const vector<NormalizedBBox>& bboxes = it->second;
+      for (int j = 0; j < bboxes.size(); ++j) {
+    	  
+    	//const cv::Scalar& color = colors[bboxes[j].gender()]; //added by Dong Liu on March 13th 2017
+        //const cv::Scalar& color = colors[bboxes[j].orientation()];
+    	cv::Point top_left_pt(bboxes[j].xmin(), bboxes[j].ymin());
+        cv::Point bottom_right_pt(bboxes[j].xmax(), bboxes[j].ymax());
+        cv::rectangle(image, top_left_pt, bottom_right_pt, color, 4);
+        cv::Point bottom_left_pt(bboxes[j].xmin(), bboxes[j].ymax());
+        
+        string orientation;
+
+        if(bboxes[j].orientation()==1)
+           orientation = "0-45";
+        else if(bboxes[j].orientation()==2)
+           orientation = "45-90";
+        else if(bboxes[j].orientation()==3)
+           orientation = "90-135";
+        else if(bboxes[j].orientation()==4)
+           orientation = "135-180";
+        else if(bboxes[j].orientation()==5)
+           orientation = "180-225";
+        else if(bboxes[j].orientation()==6)
+           orientation = "225-270";
+        else if(bboxes[j].orientation()==7)
+           orientation = "270-315";
+        else if(bboxes[j].orientation()==8)
+           orientation = "315-360";
+        else if(bboxes[j].orientation()==9)
+            orientation = "";
+
+
+        if(bboxes[j].orientation()!=9)
+        snprintf(buffer, sizeof(buffer), "%s: %.2f, %s: %.2f", label_name.c_str(),
+                         bboxes[j].score(), orientation.c_str(), bboxes[j].oscore()); // adde
+        else
+          snprintf(buffer, sizeof(buffer), "%s: %.2f", label_name.c_str(),
+        	                         bboxes[j].score());
+
+
+
+        cv::Size text = cv::getTextSize(buffer, fontface, scale, thickness,
+                                        &baseline);
+        cv::rectangle(
+            image, bottom_left_pt + cv::Point(0, 0),
+            bottom_left_pt + cv::Point(text.width, -text.height-baseline),
+            color, CV_FILLED);
+        cv::putText(image, buffer, bottom_left_pt - cv::Point(0, baseline),
+                    fontface, scale, CV_RGB(0, 0, 0), thickness, 8);
+      }
+    }
+    cv::imshow("detections", image);
+    stringstream ss;
+    ss << id + i;
+
+    int prefix_len = 7 - ss.str().size();
+
+    string prefix = "";
+    for(int kk = 0; kk < prefix_len; kk++)
+      prefix = prefix + "0";
+
+    string savePath = frame_output_directory + prefix + ss.str() + ".jpg";
+    cv:: imwrite(savePath, image); //imwrite( "../../images/Gray_Image.jpg", gray_image );
+    if (cv::waitKey(1) == 27) {
+      raise(SIGINT);
+    }
+  }
+  start_clock = clock();
+}
+
 template
 void VisualizeBBox(const vector<cv::Mat>& images,
                    const Blob<float>* detections,
@@ -1252,6 +1846,19 @@ void VisualizeBBox(const vector<cv::Mat>& images,
                    const Blob<double>* detections,
                    const float threshold, const vector<cv::Scalar>& colors,
                    const map<int, string>& label_to_display_name);
+
+//Added by Dong Liu
+template
+void VisualizeBBox(const vector<cv::Mat>& images,
+                   const Blob<float>* detections,
+                   const float person_threshold, const float reach_threshold, const float crouch_threshold, const float crouch_reach_threshold, const float arm_threshold,
+                   const vector<cv::Scalar>& colors, const map<int, string>& label_to_display_name, const string frame_output_directory, const int id);
+template
+void VisualizeBBox(const vector<cv::Mat>& images,
+                   const Blob<double>* detections,
+                   const float person_threshold, const float reach_threshold, const float crouch_threshold, const float crouch_reach_threshold, const float arm_threshold,
+                   const vector<cv::Scalar>& colors, const map<int, string>& label_to_display_name, const string frame_output_directory, const int id);
+
 
 #endif  // USE_OPENCV
 

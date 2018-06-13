@@ -19,9 +19,19 @@ void DetectionOutputLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       this->layer_param_.detection_output_param();
   CHECK(detection_output_param.has_num_classes()) << "Must specify num_classes";
   num_classes_ = detection_output_param.num_classes();
+  //added by Dong Liu for MTL
+  CHECK(detection_output_param.has_num_orientation_classes()) << "Must specify num_orientation_classes"; //MTL
+  num_orientation_classes_ = detection_output_param.num_orientation_classes(); //MTL
+  //CHECK(detection_output_param.has_num_gender_classes()) << "Must specify num_gender_classes"; //MTL
+  //num_gender_classes_ = detection_output_param.num_gender_classes(); //MTL
   share_location_ = detection_output_param.share_location();
   num_loc_classes_ = share_location_ ? 1 : num_classes_;
   background_label_id_ = detection_output_param.background_label_id();
+
+  orientation_background_label_id_ = detection_output_param.orientation_background_label_id(); //Added by Dong Liu for MTL
+  //gender_background_label_id_ = detection_output_param.gender_background_label_id(); //Added By Dong Liu for MTL
+
+
   code_type_ = detection_output_param.code_type();
   variance_encoded_in_target_ =
       detection_output_param.variance_encoded_in_target();
@@ -47,6 +57,18 @@ void DetectionOutputLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   output_name_prefix_ = save_output_param.output_name_prefix();
   need_save_ = output_directory_ == "" ? false : true;
   output_format_ = save_output_param.output_format();
+  
+  //added by Dong Liu
+    frame_output_directory_ = save_output_param.frame_output_directory();
+    if (!frame_output_directory_.empty() &&
+        !boost::filesystem::is_directory(frame_output_directory_)) {
+      if (!boost::filesystem::create_directories(frame_output_directory_)) {
+          LOG(FATAL) << "Failed to create directory: " << frame_output_directory_;
+      }
+    }
+    need_save_frame_ = frame_output_directory_ == "" ? false : true; //added by Dong Liu
+    batch_size_ = save_output_param.batch_size();
+  
   if (save_output_param.has_label_map_file()) {
     string label_map_file = save_output_param.label_map_file();
     if (label_map_file.empty()) {
@@ -96,11 +118,27 @@ void DetectionOutputLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     need_save_ = false;
   }
   name_count_ = 0;
+  //gender_name_count_ = 0;
   visualize_ = detection_output_param.visualize();
   if (visualize_) {
     visualize_threshold_ = 0.6;
     if (detection_output_param.has_visualize_threshold()) {
       visualize_threshold_ = detection_output_param.visualize_threshold();
+    }
+    if(detection_output_param.has_person_visualize_threshold()) {
+	  person_visualize_threshold_ = detection_output_param.person_visualize_threshold();
+    }
+    if(detection_output_param.has_reach_visualize_threshold()) {
+      reach_visualize_threshold_ = detection_output_param.reach_visualize_threshold();
+    }
+	if(detection_output_param.has_crouch_visualize_threshold()) {
+       crouch_visualize_threshold_ = detection_output_param.crouch_visualize_threshold();
+    }
+    if(detection_output_param.has_crouch_reach_visualize_threshold()) {
+        crouch_reach_visualize_threshold_ = detection_output_param.crouch_reach_visualize_threshold();
+    }
+    if(detection_output_param.has_arm_visualize_threshold()) {
+      arm_visualize_threshold_ = detection_output_param.arm_visualize_threshold();
     }
     data_transformer_.reset(
         new DataTransformer<Dtype>(this->layer_param_.transform_param(),
@@ -131,22 +169,58 @@ void DetectionOutputLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
         }
       }
     }
-  }
+
+    //*********************** added by Dong Liu for gender evaluation
+    //CHECK_LE(gender_name_count_, names_.size());
+
+    /*if (name_count_ % num_test_image_ == 0) {
+
+    	 if (output_format_ == "VOC") {
+
+    		boost::filesystem::path output_directory(output_directory_);
+            std::ofstream outfile_female;
+            boost::filesystem::path file_female(
+                 output_name_prefix_ +  "female.txt");
+            boost::filesystem::path out_file_female = output_directory / file_female;
+            outfile_female.open(out_file_female.string().c_str(), std::ofstream::out);
+
+            std::ofstream outfile_male;
+            boost::filesystem::path file_male(
+                 output_name_prefix_ +  "male.txt");
+            boost::filesystem::path out_file_male = output_directory / file_male;
+                    outfile_male.open(out_file_male.string().c_str(), std::ofstream::out);
+
+      }
+
+    }*/
+
+  } // if need_save_
   CHECK_EQ(bottom[0]->num(), bottom[1]->num());
-  num_priors_ = bottom[2]->height() / 4;
+  CHECK_EQ(bottom[0]->num(), bottom[2]->num()); //Added by Dong Liu for MTL
+  //CHECK_EQ(bottom[0]->num(), bottom[3]->num()); //Added by Dong Liu for MTL
+
+  num_priors_ = bottom[3]->height() / 4; //change bottom[2] into bottom[4]
   CHECK_EQ(num_priors_ * num_loc_classes_ * 4, bottom[0]->channels())
       << "Number of priors must match number of location predictions.";
   CHECK_EQ(num_priors_ * num_classes_, bottom[1]->channels())
       << "Number of priors must match number of confidence predictions.";
+  //Added by Dong Liu for MTL
+  CHECK_EQ(num_priors_ * num_orientation_classes_, bottom[2]->channels())
+        << "Number of priors must match number of orientation confidence predictions."; //MTL */
+  //CHECK_EQ(num_priors_ * num_gender_classes_, bottom[3]->channels())
+  //        << "Number of priors must match number of gender confidence predictions."; //MTL
+
   // num() and channels() are 1.
   vector<int> top_shape(2, 1);
   // Since the number of bboxes to be kept is unknown before nms, we manually
   // set it to (fake) 1.
   top_shape.push_back(1);
-  // Each row is a 7 dimension vector, which stores
-  // [image_id, label, confidence, xmin, ymin, xmax, ymax]
-  top_shape.push_back(7);
+  // Each row is a 11 dimension vector, which stores
+  // [image_id, label, confidence, xmin, ymin, xmax, ymax, orientation, oscore] //MTL change 7 into 11
+  top_shape.push_back(9);
+
   top[0]->Reshape(top_shape);
+  //top[1]->Reshape(top_shape); //commented by Dong Liu on March 10th 2017
 }
 
 template <typename Dtype>
@@ -154,7 +228,9 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   const Dtype* loc_data = bottom[0]->cpu_data();
   const Dtype* conf_data = bottom[1]->cpu_data();
-  const Dtype* prior_data = bottom[2]->cpu_data();
+  const Dtype* orientation_data = bottom[2]->cpu_data(); //Added by Dong Liu for MTL
+  //const Dtype* gender_data = bottom[3]->cpu_data(); // added by Dong Liu for MTL
+  const Dtype* prior_data = bottom[3]->cpu_data(); //change bottom[2] into bottom[4] for MTL
   const int num = bottom[0]->num();
 
   // Retrieve all location predictions.
@@ -166,6 +242,16 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
   vector<map<int, vector<float> > > all_conf_scores;
   GetConfidenceScores(conf_data, num, num_priors_, num_classes_,
                       &all_conf_scores);
+
+  // Retrieve all age confidences. Added By Dong Liu for MTL
+  vector<map<int, vector<float> > > all_orientation_scores;
+    GetAGScores(orientation_data, num, num_priors_, num_orientation_classes_,
+                        &all_orientation_scores);
+
+  // Retrieve all gender confidences. Added By Dong Liu for MTL
+   /*vector<map<int, vector<float> > > all_gender_scores;
+        GetAGScores(gender_data, num, num_priors_, num_gender_classes_,
+                            &all_gender_scores); */
 
   // Retrieve all prior bboxes. It is same within a batch since we assume all
   // images in a batch are of same dimension.
@@ -245,13 +331,9 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
     }
   }
 
-  if (num_kept == 0) {
-    LOG(INFO) << "Couldn't find any detections";
-    return;
-  }
   vector<int> top_shape(2, 1);
   top_shape.push_back(num_kept);
-  top_shape.push_back(7);
+  top_shape.push_back(9); //change 7 into 11 by Dong Liu for MTL
   if (num_kept == 0) {
     LOG(INFO) << "Couldn't find any detections";
     top_shape[2] = 1;
@@ -266,6 +348,8 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
   boost::filesystem::path output_directory(output_directory_);
   for (int i = 0; i < num; ++i) {
     const map<int, vector<float> >& conf_scores = all_conf_scores[i];
+    //const map<int, vector<float> >& age_scores = all_age_scores[i]; //added by Dong Liu for MTL
+    const map<int, vector<float> >& orientation_scores = all_orientation_scores[i]; // added by Dong Liu for MTL
     const LabelBBox& decode_bboxes = all_decode_bboxes[i];
     for (map<int, vector<int> >::iterator it = all_indices[i].begin();
          it != all_indices[i].end(); ++it) {
@@ -290,22 +374,34 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
           << "Cannot find label: " << label << " in the label map.";
         CHECK_LT(name_count_, names_.size());
       }
+      // [image_id, label, confidence, xmin, ymin, xmax, ymax, age, ascore, gender, gscore] //MTL change 7 into 11
       for (int j = 0; j < indices.size(); ++j) {
         int idx = indices[j];
-        top_data[count * 7] = i;
-        top_data[count * 7 + 1] = label;
-        top_data[count * 7 + 2] = scores[idx];
+        //const vector<float>& ascores = age_scores.find(idx)->second; //Added by Dong Liu for MTL
+        const vector<float>& oscores = orientation_scores.find(idx)->second; //Added by Dong Liu for MTL
+        top_data[count * 9] = i;
+        top_data[count * 9 + 1] = label;
+        top_data[count * 9 + 2] = scores[idx];
         NormalizedBBox clip_bbox;
         ClipBBox(bboxes[idx], &clip_bbox);
-        top_data[count * 7 + 3] = clip_bbox.xmin();
-        top_data[count * 7 + 4] = clip_bbox.ymin();
-        top_data[count * 7 + 5] = clip_bbox.xmax();
-        top_data[count * 7 + 6] = clip_bbox.ymax();
+        top_data[count * 9 + 3] = clip_bbox.xmin();
+        top_data[count * 9 + 4] = clip_bbox.ymin();
+        top_data[count * 9 + 5] = clip_bbox.xmax();
+        top_data[count * 9 + 6] = clip_bbox.ymax();
+        //top_data[count * 9 + 7] = getIndexOfLargestElement(ascores, ascores.size()) + 1;
+        //top_data[count * 9 + 8] = *(std::max_element(ascores.begin(), ascores.end()));
+        top_data[count * 9 + 7] = getIndexOfLargestElement(oscores, oscores.size()) + 1;
+        top_data[count * 9 + 8] = *(std::max_element(oscores.begin(), oscores.end()));
+
         if (need_save_) {
           NormalizedBBox scale_bbox;
           ScaleBBox(clip_bbox, sizes_[name_count_].first,
                     sizes_[name_count_].second, &scale_bbox);
-          float score = top_data[count * 7 + 2];
+          float score = top_data[count * 9 + 2]; //change 7 into 11
+          //int age = top_data[count * 9 + 7]; // added by Dong Liu for MTL
+          //float ascore = top_data[count * 11 + 8]; // Added by Dong Liu for MTL
+          int orientation = top_data[count * 9 + 7]; //Added By Dong Liu for MTL
+          float oscore = top_data[count * 9 + 8]; // Added By Dong Liu for MTL
           float xmin = scale_bbox.xmin();
           float ymin = scale_bbox.ymin();
           float xmax = scale_bbox.xmax();
@@ -331,6 +427,10 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
           }
           cur_det.add_child("bbox", cur_bbox);
           cur_det.put<float>("score", score);
+          //cur_det.put<int>("age", age); //Added by Dong Liu for MTL
+          //cur_det.put<float>("ascore", ascore); // Added By Dong Liu for MTL
+          cur_det.put<int>("orientation", orientation); //Added by Dong Liu for MTL
+          cur_det.put<float>("oscore", oscore);
 
           detections_.push_back(std::make_pair("", cur_det));
         }
@@ -362,6 +462,11 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
             }
             string image_name = pt.get<string>("image_id");
             float score = pt.get<float>("score");
+            //int age = pt.get<int>("age"); // added by Dong Liu for MTL
+            //float ascore = pt.get<float>("ascore"); //Added by Dong Liu for MTL
+            int orientation = pt.get<int>("orientation"); // Added by Dong Liu for MTL
+            float oscore = pt.get<float>("oscore"); // Added by Dong Liu for MTL
+
             vector<int> bbox;
             BOOST_FOREACH(ptree::value_type &elem, pt.get_child("bbox")) {
               bbox.push_back(static_cast<int>(elem.second.get_value<float>()));
@@ -371,6 +476,9 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
             *(outfiles[label_name]) << " " << bbox[0] << " " << bbox[1];
             *(outfiles[label_name]) << " " << bbox[0] + bbox[2];
             *(outfiles[label_name]) << " " << bbox[1] + bbox[3];
+            //*(outfiles[label_name]) << " " << age << " " << ascore;
+            *(outfiles[label_name]) << " " <<  orientation << " " << oscore;
+            *(outfiles[label_name]) << " " ; 
             *(outfiles[label_name]) << std::endl;
           }
           for (int c = 0; c < num_classes_; ++c) {

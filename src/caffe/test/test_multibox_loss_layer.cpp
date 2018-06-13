@@ -55,6 +55,8 @@ class MultiBoxLossLayerTest : public MultiDeviceTest<TypeParam> {
   MultiBoxLossLayerTest()
       : num_(3),
         num_classes_(3),
+        num_age_classes_(6),
+        num_gender_classes_(3), 
         width_(2),
         height_(2),
         num_priors_per_location_(4),
@@ -62,11 +64,15 @@ class MultiBoxLossLayerTest : public MultiDeviceTest<TypeParam> {
         blob_bottom_loc_(new Blob<Dtype>(num_, num_priors_ * 4, 1, 1)),
         blob_bottom_conf_(new Blob<Dtype>(
                 num_, num_priors_ * num_classes_, 1, 1)),
+        blob_bottom_age_(new Blob<Dtype>(num_, num_priors_*num_age_classes_,1,1)), //Added by Dong Liu for MTL
+        blob_bottom_gender_(new Blob<Dtype>(num_, num_priors_*num_gender_classes_,1,1)),  // Added by Dong Liu for MTL 
         blob_bottom_prior_(new Blob<Dtype>(num_, 2, num_priors_ * 4, 1)),
         blob_bottom_gt_(new Blob<Dtype>(1, 1, 4, 7)),
         blob_top_loss_(new Blob<Dtype>()) {
     blob_bottom_vec_.push_back(blob_bottom_loc_);
     blob_bottom_vec_.push_back(blob_bottom_conf_);
+    blob_bottom_vec_.push_back(blob_bottom_age_);
+    blob_bottom_vec_.push_back(blob_bottom_gender_);
     blob_bottom_vec_.push_back(blob_bottom_prior_);
     blob_bottom_vec_.push_back(blob_bottom_gt_);
     blob_top_vec_.push_back(blob_top_loss_);
@@ -75,6 +81,8 @@ class MultiBoxLossLayerTest : public MultiDeviceTest<TypeParam> {
     delete blob_bottom_prior_;
     delete blob_bottom_loc_;
     delete blob_bottom_conf_;
+    delete  blob_bottom_age_;
+    delete blob_bottom_gender_; 
     delete blob_bottom_gt_;
     delete blob_top_loss_;
   }
@@ -138,6 +146,8 @@ class MultiBoxLossLayerTest : public MultiDeviceTest<TypeParam> {
         bbox->set_xmax(0.3);
         bbox->set_ymax(0.3);
         bbox->set_difficult(i % 2);
+        bbox->set_age(30);
+        bbox->set_gender(1);
       }
       if (i == 2) {
         AnnotationGroup* anno_group = anno_datum.add_annotation_group();
@@ -150,6 +160,8 @@ class MultiBoxLossLayerTest : public MultiDeviceTest<TypeParam> {
         bbox->set_xmax(0.4);
         bbox->set_ymax(0.4);
         bbox->set_difficult(i % 2);
+        bbox->set_age(3);
+        bbox->set_gender(1);
         anno = anno_group->add_annotation();
         anno->set_instance_id(1);
         bbox = anno->mutable_bbox();
@@ -158,6 +170,8 @@ class MultiBoxLossLayerTest : public MultiDeviceTest<TypeParam> {
         bbox->set_xmax(0.8);
         bbox->set_ymax(0.9);
         bbox->set_difficult((i + 1) % 2);
+        bbox->set_age(4);
+        bbox->set_gender(2);
       }
       string key_str = caffe::format_int(i, 3);
       string out;
@@ -307,12 +321,16 @@ class MultiBoxLossLayerTest : public MultiDeviceTest<TypeParam> {
   }
   int num_;
   int num_classes_;
+  int num_age_classes_;
+  int num_gender_classes_;
   int width_;
   int height_;
   int num_priors_per_location_;
   int num_priors_;
   Blob<Dtype>* const blob_bottom_loc_;
   Blob<Dtype>* const blob_bottom_conf_;
+  Blob<Dtype>* const blob_bottom_age_;    // Added by Dong Liu for MTL
+  Blob<Dtype>* const blob_bottom_gender_;   //added by Dong Liu for MTL
   Blob<Dtype>* const blob_bottom_prior_;
   Blob<Dtype>* const blob_bottom_gt_;
   Blob<Dtype>* const blob_top_loss_;
@@ -328,6 +346,9 @@ TYPED_TEST(MultiBoxLossLayerTest, TestSetUp) {
   MultiBoxLossParameter* multibox_loss_param =
       layer_param.mutable_multibox_loss_param();
   multibox_loss_param->set_num_classes(3);
+  multibox_loss_param->set_num_age_classes(6);
+  multibox_loss_param->set_num_gender_classes(3);
+
   for (int i = 0; i < 2; ++i) {
     bool share_location = kBoolChoices[i];
     this->Fill(share_location);
@@ -361,6 +382,8 @@ TYPED_TEST(MultiBoxLossLayerTest, TestLocGradient) {
   MultiBoxLossParameter* multibox_loss_param =
       layer_param.mutable_multibox_loss_param();
   multibox_loss_param->set_num_classes(this->num_classes_);
+  multibox_loss_param->set_num_age_classes(this->num_age_classes_);
+  multibox_loss_param->set_num_gender_classes(this->num_gender_classes_);
   for (int l = 0; l < 2; ++l) {
     MultiBoxLossParameter_LocLossType loc_loss_type = kLocLossTypes[l];
     for (int i = 0; i < 2; ++i) {
@@ -402,6 +425,8 @@ TYPED_TEST(MultiBoxLossLayerTest, TestConfGradient) {
   MultiBoxLossParameter* multibox_loss_param =
       layer_param.mutable_multibox_loss_param();
   multibox_loss_param->set_num_classes(this->num_classes_);
+  multibox_loss_param->set_num_age_classes(this->num_age_classes_);
+  multibox_loss_param->set_num_gender_classes(this->num_gender_classes_);
   for (int c = 0; c < 2; ++c) {
     MultiBoxLossParameter_ConfLossType conf_loss_type = kConfLossTypes[c];
     for (int i = 0; i < 2; ++i) {

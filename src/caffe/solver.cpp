@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "caffe/solver.hpp"
 #include "caffe/util/bbox_util.hpp"
@@ -233,23 +234,47 @@ void Solver<Dtype>::Step(int iters) {
       const vector<Blob<Dtype>*>& result = net_->output_blobs();
       int score_index = 0;
       for (int j = 0; j < result.size(); ++j) {
-        const Dtype* result_vec = result[j]->cpu_data();
-        const string& output_name =
+
+    	 const Dtype* result_vec = result[j]->cpu_data();
+         const string& output_name =
             net_->blob_names()[net_->output_blob_indices()[j]];
-        const Dtype loss_weight =
+         const Dtype loss_weight =
             net_->blob_loss_weights()[net_->output_blob_indices()[j]];
-        for (int k = 0; k < result[j]->count(); ++k) {
-          ostringstream loss_msg_stream;
-          if (loss_weight) {
-            loss_msg_stream << " (* " << loss_weight
+
+         for(int k = 0; k < 7; ++k) {
+
+           if(k == 0) {
+        	   ostringstream loss_msg_stream;
+               if (loss_weight) {
+                 loss_msg_stream << " (* " << loss_weight
                             << " = " << loss_weight * result_vec[k] << " loss)";
-          }
-          LOG_IF(INFO, Caffe::root_solver()) << "    Train net output #"
-              << score_index++ << ": " << output_name << " = "
-              << result_vec[k] << loss_msg_stream.str();
-        }
-      }
-    }
+               }
+               LOG_IF(INFO, Caffe::root_solver()) << "    Train net output #"
+                  << score_index++ << ": " << output_name << " = "
+                  << result_vec[k] << loss_msg_stream.str();
+           } // if k ==0
+
+           if(k == 1) {
+               LOG_IF(INFO, Caffe::root_solver())<< "        Train net localization loss: "
+               	    <<result_vec[k]/result_vec[k+1]<< " = (" << result_vec[k] <<" / " <<  result_vec[k+1] << ")";
+           } // if k ==1
+
+           if(k == 3) {
+
+              LOG_IF(INFO, Caffe::root_solver())<< "        Train net confidence loss: "
+                      	<<result_vec[k]/result_vec[k+1]<< " = (" << result_vec[k] <<" / " <<  result_vec[k+1] << ")";
+                  }
+
+           if(k == 5) {
+
+                        LOG_IF(INFO, Caffe::root_solver())<< "        Train net orientation confidence loss: "
+                        		<<result_vec[k]/result_vec[k+1]<< " = (" << result_vec[k] <<" / " <<  result_vec[k+1] << ")";
+                  }
+
+         } // for k
+     } // for j
+   } // display
+
     for (int i = 0; i < callbacks_.size(); ++i) {
       callbacks_[i]->on_gradients_ready();
     }
@@ -422,11 +447,22 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
             << ", Testing net (#" << test_net_id << ")";
   CHECK_NOTNULL(test_nets_[test_net_id].get())->
       ShareTrainedLayersWith(net_.get());
+
   map<int, map<int, vector<pair<float, int> > > > all_true_pos;
   map<int, map<int, vector<pair<float, int> > > > all_false_pos;
+
   map<int, map<int, int> > all_num_pos;
+  map<int, map<int, int> > all_orientation_num_pos; //Added by Dong Liu for MTL
+  //map<int, map<int, int> > all_gender_num_pos; //Added by Dong Liu for MTL
+
+  map<int, map<int, vector<pair<float, int> > > > all_orientation_true_pos; //Added by Dong Liu for MTL
+  map<int, map<int, vector<pair<float, int> > > > all_orientation_false_pos; // Added by Dong Liu for MTL
+
   const shared_ptr<Net<Dtype> >& test_net = test_nets_[test_net_id];
   Dtype loss = 0;
+
+  //std::cout<<param_.test_iter(test_net_id)<<std::endl;
+
   for (int i = 0; i < param_.test_iter(test_net_id); ++i) {
     SolverAction::Enum request = GetRequestedAction();
     // Check to see if stoppage of testing/training has been requested.
@@ -443,30 +479,43 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
       break;
     }
 
+
+
     Dtype iter_loss;
     const vector<Blob<Dtype>*>& result = test_net->Forward(&iter_loss);
     if (param_.test_compute_loss()) {
       loss += iter_loss;
     }
-    for (int j = 0; j < result.size(); ++j) {
-      CHECK_EQ(result[j]->width(), 5);
+
+    //std::cout<< "reach here"<<result.size()<<std::endl;
+
+    for (int j = 0; j < result.size(); j++) {
+
+      if(j==0) {
+
+      CHECK_EQ(result[j]->width(), 9); //change 5 into 13 by Dong Liu for MTL
       const Dtype* result_vec = result[j]->cpu_data();
       int num_det = result[j]->height();
+
       for (int k = 0; k < num_det; ++k) {
-        int item_id = static_cast<int>(result_vec[k * 5]);
-        int label = static_cast<int>(result_vec[k * 5 + 1]);
+        int item_id = static_cast<int>(result_vec[k * 9]); // change 5 into 11 by Dong Liu for MTL
+        int label = static_cast<int>(result_vec[k * 9 + 1]); //change 5 into 11 by Dong Liu for MTL
+
         if (item_id == -1) {
           // Special row of storing number of positives for a label.
           if (all_num_pos[j].find(label) == all_num_pos[j].end()) {
-            all_num_pos[j][label] = static_cast<int>(result_vec[k * 5 + 2]);
+            all_num_pos[j][label] = static_cast<int>(result_vec[k * 9 + 2]);
           } else {
-            all_num_pos[j][label] += static_cast<int>(result_vec[k * 5 + 2]);
+            all_num_pos[j][label] += static_cast<int>(result_vec[k * 9 + 2]);
           }
-        } else {
+        }
+
+
+        if(item_id != -1 && item_id != -2 ) { // item_id ! = -1 -2 -3
           // Normal row storing detection status.
-          float score = result_vec[k * 5 + 2];
-          int tp = static_cast<int>(result_vec[k * 5 + 3]);
-          int fp = static_cast<int>(result_vec[k * 5 + 4]);
+          float score = result_vec[k * 9 + 2]; // change 5 into 11 by Dong Liu for MTL
+          int tp = static_cast<int>(result_vec[k * 9 + 3]); // change 5 into 11 by Dong Liu for MTL
+          int fp = static_cast<int>(result_vec[k * 9 + 4]); // change 5 into 11 by Dong Liu for MTL
           if (tp == 0 && fp == 0) {
             // Ignore such case. It happens when a detection bbox is matched to
             // a difficult gt bbox and we don't evaluate on difficult gt bbox.
@@ -474,10 +523,58 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
           }
           all_true_pos[j][label].push_back(std::make_pair(score, tp));
           all_false_pos[j][label].push_back(std::make_pair(score, fp));
-        }
-      }
-    }
-  }
+
+        } // if (!= 1 && !=2)
+       } // for num_det
+      } // if (j ==0)
+
+      //std::cout<< "reach here j = 0"<<std::endl;
+
+
+      if(j == 1) {
+
+            CHECK_EQ(result[j]->width(), 9); //change 5 into 13 by Dong Liu for MTL
+            const Dtype* result_vec = result[j]->cpu_data();
+            int num_det = result[j]->height();
+            //total_det_num = total_det_num + num_det;
+
+            for (int k = 0; k < num_det; ++k) {
+              int item_id = static_cast<int>(result_vec[k * 9]); // change 5 into 11 by Dong Liu for MTL
+
+              int orientation_label = static_cast<int>(result_vec[k * 9 + 5]); //Added by Dong Liu for MTL
+
+              if(item_id == -2) {
+                // Added by Dong Liu for MTL in gender estimation
+                if (all_orientation_num_pos[j-1].find(orientation_label) == all_orientation_num_pos[j-1].end()) {
+                  all_orientation_num_pos[j-1][orientation_label] = static_cast<int>(result_vec[k * 9 + 8]);
+                } else {
+                  all_orientation_num_pos[j-1][orientation_label] += static_cast<int>(result_vec[k * 9 + 8]);
+                }
+              }
+
+              if(item_id != -1 && item_id != -2 ) { // item_id ! = -1 -2 -3
+
+                // Normal row storing gender detection status Added by Dong Liu for MTL
+                float orientation_score = result_vec[k * 9 +  8];
+                int orientation_tp = static_cast<int>(result_vec[k * 9 + 6]);
+                int orientation_fp = static_cast<int>(result_vec[k * 9 + 7]);
+                if (orientation_tp == 0 && orientation_fp == 0) {
+                  // Ignore such case. It happens when a detection bbox is matched to
+                  // a difficult gt bbox and we don't evaluate on difficult gt bbox.
+                  continue;
+                }
+                all_orientation_true_pos[j-1][orientation_label].push_back(std::make_pair(orientation_score, orientation_tp));
+                all_orientation_false_pos[j-1][orientation_label].push_back(std::make_pair(orientation_score, orientation_fp));
+
+
+              } // if (!= 1 && !=2)
+             } // for num_det
+            } // if (j == 1)
+
+    } // for j result.size()
+  } //for test net id
+
+
   if (requested_early_exit_) {
     LOG(INFO)     << "Test interrupted.";
     return;
@@ -486,21 +583,26 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
     loss /= param_.test_iter(test_net_id);
     LOG(INFO) << "Test loss: " << loss;
   }
+
   for (int i = 0; i < all_true_pos.size(); ++i) {
-    if (all_true_pos.find(i) == all_true_pos.end()) {
+
+	if (all_true_pos.find(i) == all_true_pos.end()) {
       LOG(FATAL) << "Missing output_blob true_pos: " << i;
     }
     const map<int, vector<pair<float, int> > >& true_pos =
         all_true_pos.find(i)->second;
+
     if (all_false_pos.find(i) == all_false_pos.end()) {
       LOG(FATAL) << "Missing output_blob false_pos: " << i;
     }
     const map<int, vector<pair<float, int> > >& false_pos =
         all_false_pos.find(i)->second;
+
     if (all_num_pos.find(i) == all_num_pos.end()) {
       LOG(FATAL) << "Missing output_blob num_pos: " << i;
     }
     const map<int, int>& num_pos = all_num_pos.find(i)->second;
+
     map<int, float> APs;
     float mAP = 0.;
     // Sort true_pos and false_pos with descend scores.
@@ -526,10 +628,62 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
       mAP += APs[label];
     }
     mAP /= num_pos.size();
+
+
+    //added on April 7th 2017
+    // Calculate age MAP, Added by Dong Liu for MTL
+    if (all_orientation_true_pos.find(i) == all_orientation_true_pos.end()) {
+      LOG(FATAL) << "Missing output_blob orientation_true_pos: " << i;
+    }
+    const map<int, vector<pair<float, int> > >& orientation_true_pos =
+        all_orientation_true_pos.find(i)->second;
+    if (all_orientation_false_pos.find(i) == all_orientation_false_pos.end()) {
+      LOG(FATAL) << "Missing output_blob orientation_false_pos: " << i;
+    }
+    const map<int, vector<pair<float, int> > >& orientation_false_pos =
+        all_orientation_false_pos.find(i)->second;
+    if (all_orientation_num_pos.find(i) == all_orientation_num_pos.end()) {
+      LOG(FATAL) << "Missing output_blob orientation_num_pos: " << i;
+    }
+    const map<int, int>& orientation_num_pos = all_orientation_num_pos.find(i)->second;
+    map<int, float> orientation_APs;
+    float orientation_mAP = 0.;
+    // Sort true_pos and false_pos with descend scores.
+    for (map<int, int>::const_iterator it = orientation_num_pos.begin();
+         it != orientation_num_pos.end(); ++it) {
+      int orientation_label = it->first;
+      int orientation_label_num_pos = it->second;
+
+      if (orientation_true_pos.find(orientation_label) == orientation_true_pos.end()) {
+        LOG(WARNING) << "Missing orientation_true_pos for orientation_label: " << orientation_label;
+        continue;
+      }
+      const vector<pair<float, int> >& orientation_label_true_pos =
+    		  orientation_true_pos.find(orientation_label)->second;
+
+      if (orientation_false_pos.find(orientation_label) == orientation_false_pos.end()) {
+        LOG(WARNING) << "Missing orientation_false_pos for orientation_label: " << orientation_label;
+        continue;
+      }
+      const vector<pair<float, int> >& orientation_label_false_pos =
+    		  orientation_false_pos.find(orientation_label)->second;
+
+      vector<float> orientation_prec, orientation_rec;
+      ComputeAP(orientation_label_true_pos, orientation_label_num_pos, orientation_label_false_pos,
+                param_.ap_version(), &orientation_prec, &orientation_rec, &(orientation_APs[orientation_label]));
+      orientation_mAP += orientation_APs[orientation_label];
+    }
+    orientation_mAP /= orientation_num_pos.size();
+
+
+
     const int output_blob_index = test_net->output_blob_indices()[i];
     const string& output_name = test_net->blob_names()[output_blob_index];
-    LOG(INFO) << "    Test net output #" << i << ": " << output_name << " = "
+    LOG(INFO) << "    Test net output #" << i << ": " << output_name << " activity mAP = "
               << mAP;
+    LOG(INFO) << "    Test net output #" << i << ": " << output_name << " orientation mAP = " // Added by Dong Liu for MTL
+                  << orientation_mAP;
+
   }
 }
 

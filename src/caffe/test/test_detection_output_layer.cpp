@@ -27,9 +27,13 @@ class DetectionOutputLayerTest : public MultiDeviceTest<TypeParam> {
       : num_(2),
         num_priors_(4),
         num_classes_(2),
+        num_age_classes_(99), // added by Dong Liu for MTL
+        num_gender_classes_(3), // Added by Dong Liu for MTL
         share_location_(true),
         num_loc_classes_(share_location_ ? 1 : num_classes_),
         background_label_id_(0),
+        age_background_label_id_(0),
+        gender_background_label_id_(0), 
         nms_threshold_(0.1),
         top_k_(2),
         blob_bottom_loc_(
@@ -131,9 +135,13 @@ class DetectionOutputLayerTest : public MultiDeviceTest<TypeParam> {
   int num_;
   int num_priors_;
   int num_classes_;
+  int num_age_classes_; // added by Dong Liu for MTL
+  int num_gender_classes_; // added by Dong Liu for MTL
   bool share_location_;
   int num_loc_classes_;
   int background_label_id_;
+  int age_background_label_id_; // added by Dong Liu for MTL
+  int gender_background_label_id_; // added by Dong Liu for MTL
   float nms_threshold_;
   int top_k_;
 

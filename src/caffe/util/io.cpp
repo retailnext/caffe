@@ -279,6 +279,7 @@ bool ReadXMLToAnnotatedDatum(const string& labelfile, const int img_height,
     if (v1.first == "object") {
       Annotation* anno = NULL;
       bool difficult = false;
+      int orientation = 0; //Added by Dong Liu for MTL
       ptree object = v1.second;
       BOOST_FOREACH(ptree::value_type &v2, object.get_child("")) {
         ptree pt2 = v2.second;
@@ -313,11 +314,15 @@ bool ReadXMLToAnnotatedDatum(const string& labelfile, const int img_height,
           anno->set_instance_id(instance_id++);
         } else if (v2.first == "difficult") {
           difficult = pt2.data() == "1";
+        } else if (v2.first == "orientation") {
+        	orientation = pt2.get_value<int>();
         } else if (v2.first == "bndbox") {
           int xmin = pt2.get("xmin", 0);
           int ymin = pt2.get("ymin", 0);
           int xmax = pt2.get("xmax", 0);
           int ymax = pt2.get("ymax", 0);
+          //int age = pt2.get("age", 0); //Dong Liu for MTL
+          //int gender = pt2.get("gender", 0); //Dong Liu for MTL
           CHECK_NOTNULL(anno);
           LOG_IF(WARNING, xmin > width) << labelfile <<
               " bounding box exceeds image boundary.";
@@ -339,6 +344,11 @@ bool ReadXMLToAnnotatedDatum(const string& labelfile, const int img_height,
               " bounding box irregular.";
           LOG_IF(WARNING, ymin > ymax) << labelfile <<
               " bounding box irregular.";
+          LOG_IF(WARNING, abs(orientation) < 10e-3) << labelfile <<
+              "orientation is 0.";
+          //LOG_IF(WARNING, abs(gender) < 10e-3) << labelfile <<
+          //  "Gender is 0.";
+
           // Store the normalized bounding box.
           NormalizedBBox* bbox = anno->mutable_bbox();
           bbox->set_xmin(static_cast<float>(xmin) / width);
@@ -346,6 +356,7 @@ bool ReadXMLToAnnotatedDatum(const string& labelfile, const int img_height,
           bbox->set_xmax(static_cast<float>(xmax) / width);
           bbox->set_ymax(static_cast<float>(ymax) / height);
           bbox->set_difficult(difficult);
+          bbox->set_orientation(orientation); //Added by Dong Liu for MTL
         }
       }
     }

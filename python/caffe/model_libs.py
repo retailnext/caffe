@@ -47,7 +47,7 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     if use_scale:
       sb_kwargs = {
           'bias_term': True,
-          'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=1, decay_mult=0)],
+          'param': [dict(lr_mult=1, decay_mult=0), dict(lr_mult=1, decay_mult=0)],
           'filler': dict(type='constant', value=1.0),
           'bias_filler': dict(type='constant', value=0.0),
           }
@@ -369,7 +369,7 @@ def ResNet101Body(net, from_layer, use_pool5=True, use_dilation_conv5=False):
     return net
 
 
-def ResNet152Body(net, from_layer, use_pool5=True):
+def ResNet152Body(net, from_layer, use_pool5=True, use_dilation_conv5=False):
     conv_prefix = ''
     conv_postfix = ''
     bn_prefix = 'bn_'
@@ -654,13 +654,18 @@ def InceptionV3Body(net, from_layer, output_pred=False):
 
   return net
 
-def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
-        use_objectness=False, normalizations=[], use_batchnorm=True,
+def CreateMultiBoxHead(net, data_layer="data", num_classes=[], num_age_classes =[], num_gender_classes=[],
+        from_layers=[], use_objectness=False, normalizations=[], use_batchnorm=True,
         min_sizes=[], max_sizes=[], prior_variance = [0.1],
         aspect_ratios=[], share_location=True, flip=True, clip=True,
         inter_layer_depth=0, kernel_size=1, pad=0, conf_postfix='', loc_postfix=''):
     assert num_classes, "must provide num_classes"
     assert num_classes > 0, "num_classes must be positive number"
+    assert num_age_classes, "must provide num_age_classes"
+    assert num_age_classes > 0, "num_age_classes must be positive number"
+    assert num_gender_classes, "must provide num_gender_classes"
+    assert num_gender_classes > 0, "num_gender_classes must be positive number"
+
     if normalizations:
         assert len(from_layers) == len(normalizations), "from_layers and normalizations should have same length"
     assert len(from_layers) == len(min_sizes), "from_layers and min_sizes should have same length"
@@ -673,6 +678,9 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
     priorbox_layers = []
     loc_layers = []
     conf_layers = []
+    age_layers = [] #added by Dong Liu
+    gender_layers =[] #added by Dong Liu
+
     objectness_layers = []
     for i in range(0, num):
         from_layer = from_layers[i]
@@ -729,6 +737,30 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
         net[flatten_name] = L.Flatten(net[permute_name], axis=1)
         conf_layers.append(net[flatten_name])
 
+        #added by Dong Liu
+        # Create age confidence prediction layer.
+        name = "{}_mbox_age{}".format(from_layer, conf_postfix)
+        num_age_output = num_priors_per_location * num_age_classes;
+        ConvBNLayer(net, from_layer, name, use_bn=use_batchnorm, use_relu=False,
+                    num_output=num_age_output, kernel_size=kernel_size, pad=pad, stride=1)
+        permute_name = "{}_perm".format(name)
+        net[permute_name] = L.Permute(net[name], order=[0, 2, 3, 1])
+        flatten_name = "{}_flat".format(name)
+        net[flatten_name] = L.Flatten(net[permute_name], axis=1)
+        age_layers.append(net[flatten_name])
+
+        # added by Dong Liu
+        # Create gender confidence prediction layer.
+        name = "{}_mbox_gender{}".format(from_layer, conf_postfix)
+        num_gender_output = num_priors_per_location * num_gender_classes;
+        ConvBNLayer(net, from_layer, name, use_bn=use_batchnorm, use_relu=False,
+                    num_output=num_gender_output, kernel_size=kernel_size, pad=pad, stride=1)
+        permute_name = "{}_perm".format(name)
+        net[permute_name] = L.Permute(net[name], order=[0, 2, 3, 1])
+        flatten_name = "{}_flat".format(name)
+        net[flatten_name] = L.Flatten(net[permute_name], axis=1)
+        gender_layers.append(net[flatten_name])
+
         # Create prior generation layer.
         name = "{}_mbox_priorbox".format(from_layer)
         if max_sizes and max_sizes[i]:
@@ -766,6 +798,12 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
     mbox_layers.append(net[name])
     name = "mbox_conf"
     net[name] = L.Concat(*conf_layers, axis=1)
+    mbox_layers.append(net[name])
+    name = "mbox_age"
+    net[name] = L.Concat(*age_layers, axis=1)
+    mbox_layers.append(net[name])
+    name = "mbox_gender"
+    net[name] = L.Concat(*gender_layers, axis=1)
     mbox_layers.append(net[name])
     name = "mbox_priorbox"
     net[name] = L.Concat(*priorbox_layers, axis=2)

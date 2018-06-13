@@ -299,11 +299,16 @@ void DataTransformer<Dtype>::TransformAnnotation(
         const NormalizedBBox& bbox = anno.bbox();
         // Adjust bounding box annotation.
         NormalizedBBox resize_bbox = bbox;
+        //std::cout<<"before age = "<<resize_bbox.age()<<"\n";
+        //std::cout<<"before gender = "<<resize_bbox.gender()<<"\n";
+
         if (do_resize && param_.has_resize_param()) {
           CHECK_GT(img_height, 0);
           CHECK_GT(img_width, 0);
           UpdateBBoxByResizePolicy(param_.resize_param(), img_width, img_height,
                                    &resize_bbox);
+          //std::cout<<"after age = "<<resize_bbox.age()<<"\n";
+          //std::cout<<"after gender = "<<resize_bbox.gender()<<"\n";
         }
         if (param_.has_emit_constraint() &&
             !MeetEmitConstraint(crop_bbox, resize_bbox,
@@ -533,6 +538,11 @@ void DataTransformer<Dtype>::ExpandImage(const AnnotatedDatum& anno_datum,
   const bool do_mirror = false;
   TransformAnnotation(anno_datum, do_resize, expand_bbox, do_mirror,
                       expanded_anno_datum->mutable_annotation_group());
+
+  /*std::cout<< "after transformation:\n";
+  std::cout<< "age = "<<expand_bbox.age()<<"\n";
+  std::cout<< "gender ="<<expand_bbox.gender()<<"\n";*/
+
 }
 
 template<typename Dtype>
