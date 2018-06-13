@@ -18,14 +18,10 @@ void DetectionEvaluateLayer<Dtype>::LayerSetUp(
       << "Must provide num_classes.";
   CHECK(detection_evaluate_param.has_num_orientation_classes()) // Added by Dong Liu for MTL
       << "Must provide num_orientation_classes.";
-  //CHECK(detection_evaluate_param.has_num_gender_classes()) // Added by Dong Liu for MTL
-  //      << "Must provide num_gender_classes.";
   num_classes_ = detection_evaluate_param.num_classes();
   num_orientation_classes_ = detection_evaluate_param.num_orientation_classes(); //Added by Dong liu for MTL
-  //num_gender_classes_ = detection_evaluate_param.num_gender_classes(); //Added by Dong Liu for MTL
   background_label_id_ = detection_evaluate_param.background_label_id();
   orientation_background_label_id_ = detection_evaluate_param.orientation_background_label_id(); //Added by Dong Liu for MTL
-  //gender_background_label_id_ = detection_evaluate_param.gender_background_label_id();
 
   overlap_threshold_ = detection_evaluate_param.overlap_threshold();
   CHECK_GT(overlap_threshold_, 0.) << "overlap_threshold must be non negative.";
@@ -46,7 +42,6 @@ void DetectionEvaluateLayer<Dtype>::LayerSetUp(
     infile.close();
   }
   count_ = 0;
-  //gender_count_ = 0;
   orientation_count_ = 0;
   // If there is no name_size_file provided, use normalized bbox to evaluate.
   use_normalized_bbox_ = sizes_.size() == 0;
@@ -108,7 +103,7 @@ void DetectionEvaluateLayer<Dtype>::Forward_cpu(
   
   //Added on April 7th 2017
   map<int, LabelBBox> all_orientation_detections;
-  GetAgeDetectionResults(det_data, bottom[0]->height(), orientation_background_label_id_,
+  GetOrientationDetectionResults(det_data, bottom[0]->height(), orientation_background_label_id_,
   		              &all_orientation_detections); //TODO: Need to implement the function
 
   // Retrieve all ground truth (including difficult ones). change 2 into 1 on March 10th 2017
@@ -118,7 +113,7 @@ void DetectionEvaluateLayer<Dtype>::Forward_cpu(
 
   //added on April 7th 2017
   map<int, LabelBBox> all_orientation_gt_bboxes;
-  GetAgeGroundTruth(gt_data, bottom[1]->height(), orientation_background_label_id_,
+  GetOrientationGroundTruth(gt_data, bottom[1]->height(), orientation_background_label_id_,
                  true, &all_orientation_gt_bboxes); //ToDO:Need to implement the function
 
   Dtype* top_data = top[0]->mutable_cpu_data();
@@ -292,10 +287,8 @@ void DetectionEvaluateLayer<Dtype>::Forward_cpu(
             top_data[num_det * 9] = image_id;
             top_data[num_det * 9 + 1] = label;
             top_data[num_det * 9 + 2] = bboxes[i].score();
-            //top_data[num_det * 13 + 5] = bboxes[i].age();
-            top_data[num_det * 9 + 5] = 0; //bboxes[i].gender();
-            //top_data[num_det * 13 + 11] = bboxes[i].ascore();
-            top_data[num_det * 9 + 8] = 0; //bboxes[i].gscore();
+            top_data[num_det * 9 + 5] = 0; //bboxes[i].orientation();
+            top_data[num_det * 9 + 8] = 0; //bboxes[i].oscore();
 
             //top_data[num_det * 13 + 9] = 0;
             //top_data[num_det * 13 + 12] = 0;

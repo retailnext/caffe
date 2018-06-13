@@ -957,14 +957,10 @@ message DetectionEvaluateParameter {
   // If provided, we will scale the prediction and ground truth NormalizedBBox
   // for evaluation.
   optional string name_size_file = 5;
-  // Number of age classes that are actually predicted.  Added by Dong Liu for MTL
+  // Number of orientation classes that are actually predicted.  Added by Dong Liu for MTL
   optional uint32 num_orientation_classes = 6;
-  // Label id for gender background class. Added by Dong Liu for MTL
+  // Label id for orientation background class. Added by Dong Liu for MTL
   optional uint32 orientation_background_label_id = 7 [default=0];
-  // Number of gender classes that are actually predcited. Added by Dong Liu for MTL
-  // optional uint32 num_gender_classes = 8;
-  // Label id for gender background class. Added by Dong Liu for MTL
-  // optional uint32 gender_background_label_id = 9 [default=0];
 }
 
 message NonMaximumSuppressionParameter {

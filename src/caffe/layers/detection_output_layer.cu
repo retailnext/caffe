@@ -61,7 +61,7 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
       num_orientation_classes_, num_priors_, 1, orientation_permute_data);
   orientation_data = orientation_permute.cpu_data();
   vector<map<int, vector<float> > > all_orientation_scores;
-  GetAGScores(orientation_data, num, num_priors_, num_orientation_classes_,
+  GetOScores(orientation_data, num, num_priors_, num_orientation_classes_,
                            &all_orientation_scores); // TODO:have to implement this function
 
 
@@ -150,8 +150,6 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
     const map<int, vector<float> >& conf_scores = all_conf_scores[i]; // each should be #class by #prediction
     // Added on April 7th 2017
     const map<int, vector<float> >& orientation_scores = all_orientation_scores[i]; // Added by Dong Liu for MTL, each should be #prediction_id by num_classes
-    //Below uncommented on March 10th 2017
-    //const map<int, vector<float> >& gender_scores = all_gender_scores[i]; //Added by Dong Liu for MTL, each should be # prediction_id by num_classes
 
     const LabelBBox& decode_bboxes = all_decode_bboxes[i];
     for (map<int, vector<int> >::iterator it = all_indices[i].begin();

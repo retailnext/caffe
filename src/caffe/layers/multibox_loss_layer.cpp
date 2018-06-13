@@ -191,7 +191,6 @@ void MultiBoxLossLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   num_gt_ = bottom[4]->height(); //Dong Liu for MTL
   CHECK_EQ(bottom[0]->num(), bottom[1]->num());
   CHECK_EQ(bottom[0]->num(), bottom[2]->num()); //Dong Liu for MTL
-  //CHECK_EQ(bottom[0]->num(), bottom[3]->num()); //Dong Liu for MTL
   CHECK_EQ(num_priors_ * loc_classes_ * 4, bottom[0]->channels())
       << "Number of priors must match number of location predictions.";
   CHECK_EQ(num_priors_ * num_classes_, bottom[1]->channels())
@@ -216,7 +215,7 @@ void MultiBoxLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
   // Retrieve all orientation ground truth
   map<int, vector<NormalizedBBox> > all_orientation_gt_bboxes;
-  GetAgeGroundTruth(gt_data, num_gt_, orientation_background_label_id_, use_difficult_gt_,
+  GetOrientationGroundTruth(gt_data, num_gt_, orientation_background_label_id_, use_difficult_gt_,
                        &all_orientation_gt_bboxes); //TODO: Need to add this function for orientations
 
 
@@ -233,7 +232,6 @@ void MultiBoxLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
   // Retrieve max scores for each prior. Used in negative mining.
   vector<vector<float> > all_max_scores;
-  //vector<vector<float> > all_gender_max_scores;
   vector<vector<float> > all_orientation_max_scores; //added on April 6th 2017
   if (do_neg_mining_) {
     GetMaxConfidenceScores(conf_data, num_, num_priors_, num_classes_,
@@ -507,7 +505,7 @@ void MultiBoxLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   }
 
   //Added on April 6th 2017
-  // Below age negative mining, added by Dong Liu for MTL
+  // Below orientation negative mining, added by Dong Liu for MTL
   orientation_num_matches_ = 0;
   int orientation_num_negs = 0;
   for (int i = 0; i < num_; ++i) {
@@ -837,15 +835,6 @@ void MultiBoxLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     top[0]->mutable_cpu_data()[5] = orientation_conf_loss_.cpu_data()[0];// Added by Dong Liu for MTL
     top[0]->mutable_cpu_data()[6] = normalizer;
   }
-  /*if (this->layer_param_.propagate_down(3)) {
-     //Added by Dong Liu for MTL
-     Dtype normalizer = LossLayer<Dtype>::GetNormalizer(
-            normalization_, num_, num_priors_, gender_num_matches_);
-     top[0]->mutable_cpu_data()[0] +=
-     gender_weight_ * gender_conf_loss_.cpu_data()[0] / normalizer;
-     top[0]->mutable_cpu_data()[7] = gender_conf_loss_.cpu_data()[0];// Added by Dong Liu for MTL
-     top[0]->mutable_cpu_data()[8] = normalizer;
-    }*/
 }
 
 template <typename Dtype>
@@ -971,63 +960,6 @@ void MultiBoxLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       }
     }
   }
-    
-    // Back propagate on age confidence prediction. Dong Liu for MTL
-    /*if (propagate_down[2]) {
-        Dtype* age_conf_bottom_diff = bottom[2]->mutable_cpu_diff();
-        caffe_set(bottom[2]->count(), Dtype(0), age_conf_bottom_diff);
-        if (num_conf_ >= 1) {
-            vector<bool> age_conf_propagate_down;
-            // Only back propagate on prediction, not ground truth.
-            age_conf_propagate_down.push_back(true);
-            age_conf_propagate_down.push_back(false);
-            age_conf_loss_layer_->Backward(age_conf_top_vec_, age_conf_propagate_down,
-                                       age_conf_bottom_vec_);
-            // Scale gradient.
-            Dtype normalizer = LossLayer<Dtype>::GetNormalizer(
-                                                               normalization_, num_, num_priors_, num_matches_);
-            Dtype age_loss_weight = top[0]->cpu_diff()[0] / normalizer;
-            caffe_scal(age_conf_pred_.count(), age_loss_weight,
-                       age_conf_pred_.mutable_cpu_diff());
-            // Copy gradient back to bottom[2].
-            const Dtype* age_conf_pred_diff = age_conf_pred_.cpu_diff();
-            if (do_neg_mining_) {
-                int count = 0;
-                for (int i = 0; i < num_; ++i) {
-                    // Copy matched (positive) bboxes scores' diff.
-                    const map<int, vector<int> >& match_indices = all_match_indices_[i];
-                    for (int j = 0; j < num_priors_; ++j) {
-                        for (map<int, vector<int> >::const_iterator it =
-                             match_indices.begin(); it != match_indices.end(); ++it) {
-                            const vector<int>& match_index = it->second;
-                            CHECK_EQ(match_index.size(), num_priors_);
-                            if (match_index[j] == -1) {
-                                continue;
-                            }
-                            // Copy the diff to the right place.
-                            caffe_copy<Dtype>(num_age_classes_,
-                                              age_conf_pred_diff + count * num_age_classes_,
-                                              age_conf_bottom_diff + j * num_age_classes_);
-                            ++count;
-                        }
-                    }
-                    // Copy negative bboxes scores' diff.
-                    for (int n = 0; n < all_neg_indices_[i].size(); ++n) {
-                        int j = all_neg_indices_[i][n];
-                        CHECK_LT(j, num_priors_);
-                        caffe_copy<Dtype>(num_age_classes_,
-                                          age_conf_pred_diff + count * num_age_classes_,
-                                          age_conf_bottom_diff + j * num_age_classes_);
-                        ++count;
-                    }
-                    age_conf_bottom_diff += bottom[2]->offset(1);
-                }
-            } else {
-                // The diff is already computed and stored.
-                bottom[2]->ShareDiff(age_conf_pred_);
-            }
-        }
-    } */
 
 
     //added on April 6th 2017
@@ -1088,69 +1020,9 @@ void MultiBoxLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
         }
     }
 
-    // Back propagate on gender confidence prediction. Dong Liu for MTL
-    /*if (propagate_down[3]) {
-        Dtype* gender_conf_bottom_diff = bottom[3]->mutable_cpu_diff();
-        caffe_set(bottom[3]->count(), Dtype(0), gender_conf_bottom_diff);
-        if (gender_num_conf_ >= 1) {
-            vector<bool> gender_conf_propagate_down;
-            // Only back propagate on prediction, not ground truth.
-            gender_conf_propagate_down.push_back(true);
-            gender_conf_propagate_down.push_back(false);
-            gender_conf_loss_layer_->Backward(gender_conf_top_vec_, gender_conf_propagate_down,
-                                           gender_conf_bottom_vec_);
-            // Scale gradient.
-            Dtype normalizer = LossLayer<Dtype>::GetNormalizer(
-                                                               normalization_, num_, num_priors_, gender_num_matches_);
-            Dtype gender_loss_weight =  top[0]->cpu_diff()[0] / normalizer;
-            caffe_scal(gender_conf_pred_.count(), gender_loss_weight,
-                       gender_conf_pred_.mutable_cpu_diff());
-            // Copy gradient back to bottom[2].
-            const Dtype* gender_conf_pred_diff = gender_conf_pred_.cpu_diff();
-            if (do_neg_mining_) {
-                int count = 0;
-                for (int i = 0; i < num_; ++i) {
-                    // Copy matched (positive) bboxes scores' diff.
-                    const map<int, vector<int> >& gender_match_indices = all_gender_match_indices_[i];
-                    for (int j = 0; j < num_priors_; ++j) {
-                        for (map<int, vector<int> >::const_iterator it =
-                             gender_match_indices.begin(); it != gender_match_indices.end(); ++it) {
-                            const vector<int>& gender_match_index = it->second;
-                            CHECK_EQ(gender_match_index.size(), num_priors_);
-                            if (gender_match_index[j] == -1) {
-                                continue;
-                            }
-                            // Copy the diff to the right place.
-                            caffe_copy<Dtype>(num_gender_classes_,
-                                              gender_conf_pred_diff + count * num_gender_classes_,
-                                              gender_conf_bottom_diff + j * num_gender_classes_);
-                            ++count;
-                        }
-                    }
-                    // Copy negative bboxes scores' diff.
-                    for (int n = 0; n < all_gender_neg_indices_[i].size(); ++n) {
-                        int j = all_gender_neg_indices_[i][n];
-                        CHECK_LT(j, num_priors_);
-                        caffe_copy<Dtype>(num_gender_classes_,
-                                          gender_conf_pred_diff + count * num_gender_classes_,
-                                          gender_conf_bottom_diff + j * num_gender_classes_);
-                        ++count;
-                    }
-                    gender_conf_bottom_diff += bottom[3]->offset(1);
-                }
-            } else {
-                // The diff is already computed and stored.
-                bottom[3]->ShareDiff(gender_conf_pred_);
-            }
-        }
-    }*/
-    
-    
   // After backward, remove match statistics.
   all_match_indices_.clear();
   all_neg_indices_.clear();
-  //all_gender_match_indices_.clear();
-  //all_gender_neg_indices_.clear();
   all_orientation_match_indices_.clear();
   all_orientation_neg_indices_.clear();
 

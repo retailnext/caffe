@@ -75,12 +75,10 @@ class DetectionOutputLayer : public Layer<Dtype> {
 
   int num_classes_;
   int num_orientation_classes_; //MTL
-  //int num_gender_classes_; //MTL
   bool share_location_;
   int num_loc_classes_;
   int background_label_id_;
   int orientation_background_label_id_; //MTL
-  //int gender_background_label_id_; //MTL
 
   CodeType code_type_;
   bool variance_encoded_in_target_;
@@ -104,14 +102,12 @@ class DetectionOutputLayer : public Layer<Dtype> {
   int num_test_image_;
   int name_count_;
   int orientation_name_count_;
-  //int gender_name_count_;
   int visualize_count_; //added by Dong Liu
   bool need_save_frame_; //Added by Dong Liu
   string frame_output_directory_; //Added by Dong Liu
   int batch_size_; // added by Dong Liu
 
   ptree detections_;
-  //ptree gender_detections_;
   ptree orientation_detections_;
 
   bool visualize_;

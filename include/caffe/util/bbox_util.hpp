@@ -139,29 +139,15 @@ template <typename Dtype>
 void GetGroundTruth(const Dtype* gt_data, const int num_gt,
       const int background_label_id, const bool use_difficult_gt,
       map<int, LabelBBox>* all_gt_bboxes);
-//Added by Dong Liu for MTL
-/*template <typename Dtype>
-void GetAgeGroundTruth(const Dtype* gt_data, const int num_gt,
-      const int background_label_id, const bool use_difficult_gt,
-      map<int, LabelBBox>* all_gt_bboxes); */
-//Added by Dong Liu for MTL
-template <typename Dtype>
-void GetGenderGroundTruth(const Dtype* gt_data, const int num_gt,
-      const int background_label_id, const bool use_difficult_gt,
-      map<int, LabelBBox>* all_gt_bboxes);
-template <typename Dtype>
-void GetGenderGroundTruth(const Dtype* gt_data, const int num_gt,
-      const int background_label_id, const bool use_difficult_gt,
-      map<int, vector<NormalizedBBox> >* all_gt_bboxes);
 
 //Added on April 6th 2017
       //Added by Dong Liu for MTL
 template <typename Dtype>
-void GetAgeGroundTruth(const Dtype* gt_data, const int num_gt,
+void GetOrientationGroundTruth(const Dtype* gt_data, const int num_gt,
       const int background_label_id, const bool use_difficult_gt,
       map<int, LabelBBox>* all_gt_bboxes);
 template <typename Dtype>
-void GetAgeGroundTruth(const Dtype* gt_data, const int num_gt,
+void GetOrientationGroundTruth(const Dtype* gt_data, const int num_gt,
       const int background_label_id, const bool use_difficult_gt,
       map<int, vector<NormalizedBBox> >* all_gt_bboxes);
 
@@ -249,14 +235,9 @@ void GetDetectionResults(const Dtype* det_data, const int num_det,
       const int background_label_id,
       map<int, LabelBBox>* all_detections);
 
-template <typename Dtype>
-void GetGenderDetectionResults(const Dtype* det_data, const int num_det,
-      const int background_label_id,
-      map<int, LabelBBox>* all_detections);
-
 //Added on April 7th 2017
 template <typename Dtype>
-void GetAgeDetectionResults(const Dtype* det_data, const int num_det,
+void GetOrientationDetectionResults(const Dtype* det_data, const int num_det,
       const int background_label_id,
       map<int, LabelBBox>* all_detections);
 
@@ -399,7 +380,7 @@ void VisualizeBBox(const vector<cv::Mat>& images, const Blob<Dtype>* detections,
 int getIndexOfLargestElement(const vector<float>& arr, int size);
 
 template <typename Dtype>
-void GetAGScores(const Dtype* conf_data, const int num,
+void GetOScores(const Dtype* conf_data, const int num,
       const int num_preds_per_class, const int num_classes,
       vector<map<int, vector<float> > >* conf_preds);
 

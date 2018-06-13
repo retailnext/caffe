@@ -60,14 +60,11 @@ class DetectionEvaluateLayer : public Layer<Dtype> {
   bool evaluate_difficult_gt_;
   vector<pair<int, int> > sizes_;
   int count_;
-  //int gender_count_;
   int orientation_count_;
   bool use_normalized_bbox_;
 
   int num_orientation_classes_; //Added by Dong Liu for MTL
   int orientation_background_label_id_; //Added by Dong Liu for MTL
-  //int num_gender_classes_; //Added by Dong Liu for MTL
-  //int gender_background_label_id_; //Added by Dong Liu for MTL
 
 };
 

@@ -22,14 +22,11 @@ void DetectionOutputLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   //added by Dong Liu for MTL
   CHECK(detection_output_param.has_num_orientation_classes()) << "Must specify num_orientation_classes"; //MTL
   num_orientation_classes_ = detection_output_param.num_orientation_classes(); //MTL
-  //CHECK(detection_output_param.has_num_gender_classes()) << "Must specify num_gender_classes"; //MTL
-  //num_gender_classes_ = detection_output_param.num_gender_classes(); //MTL
   share_location_ = detection_output_param.share_location();
   num_loc_classes_ = share_location_ ? 1 : num_classes_;
   background_label_id_ = detection_output_param.background_label_id();
 
   orientation_background_label_id_ = detection_output_param.orientation_background_label_id(); //Added by Dong Liu for MTL
-  //gender_background_label_id_ = detection_output_param.gender_background_label_id(); //Added By Dong Liu for MTL
 
 
   code_type_ = detection_output_param.code_type();
@@ -118,7 +115,7 @@ void DetectionOutputLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     need_save_ = false;
   }
   name_count_ = 0;
-  //gender_name_count_ = 0;
+  //orientation_name_count_ = 0;
   visualize_ = detection_output_param.visualize();
   if (visualize_) {
     visualize_threshold_ = 0.6;
@@ -207,8 +204,6 @@ void DetectionOutputLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   //Added by Dong Liu for MTL
   CHECK_EQ(num_priors_ * num_orientation_classes_, bottom[2]->channels())
         << "Number of priors must match number of orientation confidence predictions."; //MTL */
-  //CHECK_EQ(num_priors_ * num_gender_classes_, bottom[3]->channels())
-  //        << "Number of priors must match number of gender confidence predictions."; //MTL
 
   // num() and channels() are 1.
   vector<int> top_shape(2, 1);
@@ -229,7 +224,6 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
   const Dtype* loc_data = bottom[0]->cpu_data();
   const Dtype* conf_data = bottom[1]->cpu_data();
   const Dtype* orientation_data = bottom[2]->cpu_data(); //Added by Dong Liu for MTL
-  //const Dtype* gender_data = bottom[3]->cpu_data(); // added by Dong Liu for MTL
   const Dtype* prior_data = bottom[3]->cpu_data(); //change bottom[2] into bottom[4] for MTL
   const int num = bottom[0]->num();
 
@@ -243,15 +237,10 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
   GetConfidenceScores(conf_data, num, num_priors_, num_classes_,
                       &all_conf_scores);
 
-  // Retrieve all age confidences. Added By Dong Liu for MTL
+  // Retrieve all orientation confidences. Added By Dong Liu for MTL
   vector<map<int, vector<float> > > all_orientation_scores;
-    GetAGScores(orientation_data, num, num_priors_, num_orientation_classes_,
+    GetOScores(orientation_data, num, num_priors_, num_orientation_classes_,
                         &all_orientation_scores);
-
-  // Retrieve all gender confidences. Added By Dong Liu for MTL
-   /*vector<map<int, vector<float> > > all_gender_scores;
-        GetAGScores(gender_data, num, num_priors_, num_gender_classes_,
-                            &all_gender_scores); */
 
   // Retrieve all prior bboxes. It is same within a batch since we assume all
   // images in a batch are of same dimension.
@@ -348,7 +337,6 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
   boost::filesystem::path output_directory(output_directory_);
   for (int i = 0; i < num; ++i) {
     const map<int, vector<float> >& conf_scores = all_conf_scores[i];
-    //const map<int, vector<float> >& age_scores = all_age_scores[i]; //added by Dong Liu for MTL
     const map<int, vector<float> >& orientation_scores = all_orientation_scores[i]; // added by Dong Liu for MTL
     const LabelBBox& decode_bboxes = all_decode_bboxes[i];
     for (map<int, vector<int> >::iterator it = all_indices[i].begin();
@@ -377,7 +365,6 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
       // [image_id, label, confidence, xmin, ymin, xmax, ymax, age, ascore, gender, gscore] //MTL change 7 into 11
       for (int j = 0; j < indices.size(); ++j) {
         int idx = indices[j];
-        //const vector<float>& ascores = age_scores.find(idx)->second; //Added by Dong Liu for MTL
         const vector<float>& oscores = orientation_scores.find(idx)->second; //Added by Dong Liu for MTL
         top_data[count * 9] = i;
         top_data[count * 9 + 1] = label;
@@ -388,8 +375,6 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
         top_data[count * 9 + 4] = clip_bbox.ymin();
         top_data[count * 9 + 5] = clip_bbox.xmax();
         top_data[count * 9 + 6] = clip_bbox.ymax();
-        //top_data[count * 9 + 7] = getIndexOfLargestElement(ascores, ascores.size()) + 1;
-        //top_data[count * 9 + 8] = *(std::max_element(ascores.begin(), ascores.end()));
         top_data[count * 9 + 7] = getIndexOfLargestElement(oscores, oscores.size()) + 1;
         top_data[count * 9 + 8] = *(std::max_element(oscores.begin(), oscores.end()));
 
@@ -398,8 +383,6 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
           ScaleBBox(clip_bbox, sizes_[name_count_].first,
                     sizes_[name_count_].second, &scale_bbox);
           float score = top_data[count * 9 + 2]; //change 7 into 11
-          //int age = top_data[count * 9 + 7]; // added by Dong Liu for MTL
-          //float ascore = top_data[count * 11 + 8]; // Added by Dong Liu for MTL
           int orientation = top_data[count * 9 + 7]; //Added By Dong Liu for MTL
           float oscore = top_data[count * 9 + 8]; // Added By Dong Liu for MTL
           float xmin = scale_bbox.xmin();
@@ -427,8 +410,6 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
           }
           cur_det.add_child("bbox", cur_bbox);
           cur_det.put<float>("score", score);
-          //cur_det.put<int>("age", age); //Added by Dong Liu for MTL
-          //cur_det.put<float>("ascore", ascore); // Added By Dong Liu for MTL
           cur_det.put<int>("orientation", orientation); //Added by Dong Liu for MTL
           cur_det.put<float>("oscore", oscore);
 
@@ -462,8 +443,6 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
             }
             string image_name = pt.get<string>("image_id");
             float score = pt.get<float>("score");
-            //int age = pt.get<int>("age"); // added by Dong Liu for MTL
-            //float ascore = pt.get<float>("ascore"); //Added by Dong Liu for MTL
             int orientation = pt.get<int>("orientation"); // Added by Dong Liu for MTL
             float oscore = pt.get<float>("oscore"); // Added by Dong Liu for MTL
 
@@ -476,7 +455,6 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
             *(outfiles[label_name]) << " " << bbox[0] << " " << bbox[1];
             *(outfiles[label_name]) << " " << bbox[0] + bbox[2];
             *(outfiles[label_name]) << " " << bbox[1] + bbox[3];
-            //*(outfiles[label_name]) << " " << age << " " << ascore;
             *(outfiles[label_name]) << " " <<  orientation << " " << oscore;
             *(outfiles[label_name]) << " " ; 
             *(outfiles[label_name]) << std::endl;
