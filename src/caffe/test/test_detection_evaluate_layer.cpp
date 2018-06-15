@@ -22,7 +22,9 @@ class DetectionEvaluateLayerTest : public CPUDeviceTest<Dtype> {
  protected:
   DetectionEvaluateLayerTest()
       : num_classes_(3),
+        num_orientation_classes_(3), // Added by Dong Liu for MTL
         background_label_id_(0),
+        orientation_background_label_id_(0), 
         overlap_threshold_(0.3),
         blob_bottom_det_(new Blob<Dtype>(1, 1, 8, 7)),
         blob_bottom_gt_(new Blob<Dtype>(1, 1, 4, 8)),
@@ -112,7 +114,9 @@ class DetectionEvaluateLayerTest : public CPUDeviceTest<Dtype> {
   }
 
   int num_classes_;
+  int num_orientation_classes_; // added by Dong Liu for MTL
   int background_label_id_;
+  int orientation_background_label_id_; // added by Dong Liu for MTL
   float overlap_threshold_;
 
   Blob<Dtype>* const blob_bottom_det_;
@@ -129,7 +133,9 @@ TYPED_TEST(DetectionEvaluateLayerTest, TestSetup) {
   DetectionEvaluateParameter* detection_evaluate_param =
       layer_param.mutable_detection_evaluate_param();
   detection_evaluate_param->set_num_classes(this->num_classes_);
+  detection_evaluate_param->set_num_orientation_classes(this->num_orientation_classes_);
   detection_evaluate_param->set_background_label_id(this->background_label_id_);
+  detection_evaluate_param->set_orientation_background_label_id(this->orientation_background_label_id_);
   detection_evaluate_param->set_overlap_threshold(this->overlap_threshold_);
   DetectionEvaluateLayer<TypeParam> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
@@ -144,7 +150,9 @@ TYPED_TEST(DetectionEvaluateLayerTest, TestForward) {
   DetectionEvaluateParameter* detection_evaluate_param =
       layer_param.mutable_detection_evaluate_param();
   detection_evaluate_param->set_num_classes(this->num_classes_);
+  detection_evaluate_param->set_num_orientation_classes(this->num_orientation_classes_);
   detection_evaluate_param->set_background_label_id(this->background_label_id_);
+  detection_evaluate_param->set_orientation_background_label_id(this->orientation_background_label_id_);
   detection_evaluate_param->set_overlap_threshold(this->overlap_threshold_);
   DetectionEvaluateLayer<TypeParam> layer(layer_param);
 
@@ -174,7 +182,9 @@ TYPED_TEST(DetectionEvaluateLayerTest, TestForwardSkipDifficult) {
   DetectionEvaluateParameter* detection_evaluate_param =
       layer_param.mutable_detection_evaluate_param();
   detection_evaluate_param->set_num_classes(this->num_classes_);
+  detection_evaluate_param->set_num_orientation_classes(this->num_orientation_classes_);
   detection_evaluate_param->set_background_label_id(this->background_label_id_);
+  detection_evaluate_param->set_orientation_background_label_id(this->orientation_background_label_id_);
   detection_evaluate_param->set_overlap_threshold(this->overlap_threshold_);
   detection_evaluate_param->set_evaluate_difficult_gt(false);
   DetectionEvaluateLayer<TypeParam> layer(layer_param);
