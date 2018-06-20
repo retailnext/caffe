@@ -139,6 +139,32 @@ template <typename Dtype>
 void GetGroundTruth(const Dtype* gt_data, const int num_gt,
       const int background_label_id, const bool use_difficult_gt,
       map<int, LabelBBox>* all_gt_bboxes);
+//Added by Dong Liu for MTL
+/*template <typename Dtype>
+void GetAgeGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes); */
+//Added by Dong Liu for MTL
+template <typename Dtype>
+void GetGenderGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes);
+template <typename Dtype>
+void GetGenderGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, vector<NormalizedBBox> >* all_gt_bboxes);
+
+//Added on April 6th 2017
+      //Added by Dong Liu for MTL
+template <typename Dtype>
+void GetAgeGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, LabelBBox>* all_gt_bboxes);
+template <typename Dtype>
+void GetAgeGroundTruth(const Dtype* gt_data, const int num_gt,
+      const int background_label_id, const bool use_difficult_gt,
+      map<int, vector<NormalizedBBox> >* all_gt_bboxes);
+
 
 // Get location predictions from loc_data.
 //    loc_data: num x num_preds_per_class * num_loc_classes * 4 blob.
@@ -217,13 +243,25 @@ void GetDetectionResults(const Dtype* det_data, const int num_det,
       const int background_label_id,
       map<int, LabelBBox>* all_detections);
 
+template <typename Dtype>
+void GetGenderDetectionResults(const Dtype* det_data, const int num_det,
+      const int background_label_id,
+      map<int, LabelBBox>* all_detections);
+
+//Added on April 7th 2017
+template <typename Dtype>
+void GetAgeDetectionResults(const Dtype* det_data, const int num_det,
+      const int background_label_id,
+      map<int, LabelBBox>* all_detections);
+
+
+
 // Get top_k scores with corresponding indices.
 //    scores: a set of scores.
-//    indices: a set of corresponding indices.
 //    top_k: if -1, keep all; otherwise, keep at most top_k.
 //    score_index_vec: store the sorted (score, index) pair.
-void GetTopKScoreIndex(const vector<float>& scores, const vector<int>& indices,
-      const int top_k, vector<pair<float, int> >* score_index_vec);
+void GetTopKScoreIndex(const vector<float>& scores, const int top_k,
+                         vector<pair<float, int> >* score_index_vec);
 
 // Get max scores with corresponding indices.
 //    scores: a set of scores.
@@ -343,7 +381,21 @@ template <typename Dtype>
 void VisualizeBBox(const vector<cv::Mat>& images, const Blob<Dtype>* detections,
                    const float threshold, const vector<cv::Scalar>& colors,
                    const map<int, string>& label_to_display_name);
+
+//Added by Dong Liu
+template <typename Dtype>
+void VisualizeBBox(const vector<cv::Mat>& images, const Blob<Dtype>* detections,
+                   const float threshold, const vector<cv::Scalar>& colors,
+                   const map<int, string>& label_to_display_name, const string frame_output_directory, const int id);
+
 #endif  // USE_OPENCV
+
+int getIndexOfLargestElement(const vector<float>& arr, int size);
+
+template <typename Dtype>
+void GetAGScores(const Dtype* conf_data, const int num,
+      const int num_preds_per_class, const int num_classes,
+      vector<map<int, vector<float> > >* conf_preds);
 
 }  // namespace caffe
 

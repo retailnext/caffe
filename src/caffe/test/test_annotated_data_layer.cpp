@@ -159,7 +159,7 @@ class AnnotatedDataLayerTest : public MultiDeviceTest<TypeParam> {
           EXPECT_EQ(blob_top_label_->num(), 1);
           EXPECT_EQ(blob_top_label_->channels(), 1);
           EXPECT_EQ(blob_top_label_->height(), 1);
-          EXPECT_EQ(blob_top_label_->width(), 8);
+          EXPECT_EQ(blob_top_label_->width(), 10);
           break;
         default:
           LOG(FATAL) << "Unknown annotation type.";
@@ -183,21 +183,21 @@ class AnnotatedDataLayerTest : public MultiDeviceTest<TypeParam> {
             EXPECT_EQ(blob_top_label_->num(), 1);
             EXPECT_EQ(blob_top_label_->channels(), 1);
             EXPECT_EQ(blob_top_label_->height(), BBoxNum(num_));
-            EXPECT_EQ(blob_top_label_->width(), 8);
+            EXPECT_EQ(blob_top_label_->width(), 10);
             for (int g = 0; g < i; ++g) {
               for (int a = 0; a < g; ++a) {
-                EXPECT_EQ(i, label_data[cur_bbox*8]);
-                EXPECT_EQ(g, label_data[cur_bbox*8+1]);
-                EXPECT_EQ(a, label_data[cur_bbox*8+2]);
+                EXPECT_EQ(i, label_data[cur_bbox*10]);
+                EXPECT_EQ(g, label_data[cur_bbox*10+1]);
+                EXPECT_EQ(a, label_data[cur_bbox*10+2]);
                 int b = unique_annotation_ ? a : g;
                 for (int p = 3; p < 5; ++p) {
-                  EXPECT_NEAR(b*0.1, label_data[cur_bbox*8+p], this->eps_);
+                  EXPECT_NEAR(b*0.1, label_data[cur_bbox*10+p], this->eps_);
                 }
                 for (int p = 5; p < 7; ++p) {
                   EXPECT_NEAR(std::min(b*0.1 + 0.2, 1.0),
-                            label_data[cur_bbox*8+p], this->eps_);
+                            label_data[cur_bbox*10+p], this->eps_);
                 }
-                EXPECT_EQ(a % 2, label_data[cur_bbox*8+7]);
+                EXPECT_EQ(a % 2, label_data[cur_bbox*10+7]);
                 cur_bbox++;
               }
             }
@@ -291,7 +291,7 @@ class AnnotatedDataLayerTest : public MultiDeviceTest<TypeParam> {
           EXPECT_EQ(blob_top_label_->num(), 1);
           EXPECT_EQ(blob_top_label_->channels(), 1);
           EXPECT_EQ(blob_top_label_->height(), 1);
-          EXPECT_EQ(blob_top_label_->width(), 8);
+          EXPECT_EQ(blob_top_label_->width(), 10);  // change 8 to 10 by Dong Liu for MTL 
           break;
         default:
           LOG(FATAL) << "Unknown annotation type.";
@@ -316,8 +316,8 @@ class AnnotatedDataLayerTest : public MultiDeviceTest<TypeParam> {
             EXPECT_EQ(blob_top_label_->num(), 1);
             EXPECT_EQ(blob_top_label_->channels(), 1);
             EXPECT_EQ(blob_top_label_->height(), 1);
-            EXPECT_EQ(blob_top_label_->width(), 8);
-            for (int i = 0; i < 8; ++i) {
+            EXPECT_EQ(blob_top_label_->width(), 10); // change 8 to 10 by Dong Liu for MTL  
+            for (int i = 0; i < 10; ++i) {    //change 8 into 10 by Dong Liu for MTL
               EXPECT_NEAR(label_data[i], -1, this->eps_);
             }
           } else {
@@ -325,21 +325,21 @@ class AnnotatedDataLayerTest : public MultiDeviceTest<TypeParam> {
             EXPECT_EQ(blob_top_label_->num(), 1);
             EXPECT_EQ(blob_top_label_->channels(), 1);
             EXPECT_EQ(blob_top_label_->height(), OneBBoxNum(iter));
-            EXPECT_EQ(blob_top_label_->width(), 8);
+            EXPECT_EQ(blob_top_label_->width(), 10);   //change 8 into 10 by Dong Liu for MTL
             for (int g = 0; g < iter; ++g) {
               for (int a = 0; a < g; ++a) {
-                EXPECT_EQ(0, label_data[cur_bbox*8]);
-                EXPECT_EQ(g, label_data[cur_bbox*8+1]);
-                EXPECT_EQ(a, label_data[cur_bbox*8+2]);
+                EXPECT_EQ(0, label_data[cur_bbox*10]);
+                EXPECT_EQ(g, label_data[cur_bbox*10+1]);
+                EXPECT_EQ(a, label_data[cur_bbox*10+2]);
                 int b = unique_annotation ? a : g;
                 for (int p = 3; p < 5; ++p) {
-                  EXPECT_NEAR(b*0.1, label_data[cur_bbox*8+p], this->eps_);
+                  EXPECT_NEAR(b*0.1, label_data[cur_bbox*10+p], this->eps_);
                 }
                 for (int p = 5; p < 7; ++p) {
                   EXPECT_NEAR(std::min(b*0.1 + 0.2, 1.0),
-                            label_data[cur_bbox*8+p], this->eps_);
+                            label_data[cur_bbox*10+p], this->eps_);
                 }
-                EXPECT_EQ(a % 2, label_data[cur_bbox*8+7]);
+                EXPECT_EQ(a % 2, label_data[cur_bbox*10+7]);
                 cur_bbox++;
               }
             }

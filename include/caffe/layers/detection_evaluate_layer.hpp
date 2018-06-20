@@ -29,8 +29,8 @@ class DetectionEvaluateLayer : public Layer<Dtype> {
       const vector<Blob<Dtype>*>& top);
 
   virtual inline const char* type() const { return "DetectionEvaluate"; }
-  virtual inline int ExactBottomBlobs() const { return 2; }
-  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline int ExactBottomBlobs() const { return 2; } //change 3 into 2 on March 10th 2017
+  virtual inline int ExactNumTopBlobs() const { return 3; }
 
  protected:
   /**
@@ -60,7 +60,15 @@ class DetectionEvaluateLayer : public Layer<Dtype> {
   bool evaluate_difficult_gt_;
   vector<pair<int, int> > sizes_;
   int count_;
+  int gender_count_;
+  int age_count_;
   bool use_normalized_bbox_;
+
+  int num_age_classes_; //Added by Dong Liu for MTL
+  int age_background_label_id_; //Added by Dong Liu for MTL
+  int num_gender_classes_; //Added by Dong Liu for MTL
+  int gender_background_label_id_; //Added by Dong Liu for MTL
+
 };
 
 }  // namespace caffe

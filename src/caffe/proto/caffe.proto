@@ -123,9 +123,13 @@ message NormalizedBBox {
   optional float xmax = 3;
   optional float ymax = 4;
   optional int32 label = 5;
-  optional bool difficult = 6;
+  optional bool  difficult = 6;
   optional float score = 7;
   optional float size = 8;
+  optional int32 gender = 9; // Dong Liu for MTL
+  optional float gscore = 10; //Dong Liu for MTL
+  optional int32 age = 11; // Added on April 6th for age MTL
+  optional float ascore = 12; //Added on April 6th for age MTL
 }
 
 // Annotation for each object instance.
@@ -955,6 +959,14 @@ message DetectionEvaluateParameter {
   // If provided, we will scale the prediction and ground truth NormalizedBBox
   // for evaluation.
   optional string name_size_file = 5;
+  // Number of age classes that are actually predicted.  Added by Dong Liu for MTL
+  optional uint32 num_age_classes = 6;
+  // Label id for gender background class. Added by Dong Liu for MTL
+  optional uint32 age_background_label_id = 7 [default=0];
+  // Number of gender classes that are actually predcited. Added by Dong Liu for MTL
+  optional uint32 num_gender_classes = 8;
+  // Label id for gender background class. Added by Dong Liu for MTL
+  optional uint32 gender_background_label_id = 9 [default=0];
 }
 
 message NonMaximumSuppressionParameter {
@@ -986,6 +998,10 @@ message SaveOutputParameter {
   // name_size_file. For example, when we only want to evaluate on part
   // of the test images.
   optional uint32 num_test_image = 6;
+  // Frame output Directory. If not, we will save tne frames, added by Dong Liu
+  optional string frame_output_directory = 7;
+  // added by Dong Liu
+  optional uint32 batch_size = 8;
 }
 
 // Message that store parameters used by DetectionOutputLayer
@@ -1016,6 +1032,16 @@ message DetectionOutputParameter {
   optional bool visualize = 10 [default = false];
   // The threshold used to visualize the detection results.
   optional float visualize_threshold = 11;
+  //Number of age classes to be predicted. Added by Dong Liu for MTL
+  optional uint32 num_age_classes = 12;
+  //Number of gender classes to be predicted. Added by Dong Liu for MTL
+  optional uint32 num_gender_classes = 13;
+  // Age Background label id. If there is no background class,
+  // set it as -1. Added By Dong Liu for MTL
+  optional int32 age_background_label_id = 14 [default = 0];
+  // Gender Background label id. If there is no background class,
+  // set it as -1. Added By Dong Liu for MTL
+  optional int32 gender_background_label_id = 15 [default = 0];
 }
 
 message DropoutParameter {
@@ -1273,6 +1299,30 @@ message MultiBoxLossParameter {
   // If true, map all object classes to agnostic class. It is useful for learning
   // objectness detector.
   optional bool map_object_to_agnostic = 17 [default = false];
+
+  // Gender confidence loss type added by Dong Liu for MTL
+  //enum GenderConfLossType {
+  // SOFTMAX = 0;
+  // LOGISTIC = 1;
+  // }
+
+  optional ConfLossType age_conf_loss_type = 18 [default = SOFTMAX];
+  // Weight for age confidence loss layer added by Dong Liu for MTL
+  optional float age_weight = 19 [default = 1.0];
+  // Number of age classes to be predicted. Required! Dong Liu for MTL
+  optional uint32 num_age_classes = 20;
+  //Age background label id. Added by Dong Liu for MTL
+  optional uint32 age_background_label_id = 21;
+
+  optional ConfLossType gender_conf_loss_type = 22 [default = SOFTMAX];
+  // Weight for gender confidence loss layer added by Dong Liu for MTL
+  optional float gender_weight = 23 [default = 1.0];
+  // Number of gender classes to be predicted. Required! Dong Liu for MTL
+  optional uint32 num_gender_classes = 24;
+  //Gender background label id. Added by Dong Liu for MTL
+  optional uint32 gender_background_label_id = 25;
+
+  optional float conf_weight = 26 [default = 1.0];
 }
 
 message MVNParameter {
@@ -1363,7 +1413,7 @@ message PriorBoxParameter {
   // we will generate aspect ratio "1.0/r" as well.
   optional bool flip = 4 [default = true];
   // If true, will clip the prior so that it is within [0, 1]
-  optional bool clip = 5 [default = false];
+  optional bool clip = 5 [default = true];
   // Variance for adjusting the prior bboxes.
   repeated float variance = 6;
 }

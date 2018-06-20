@@ -679,18 +679,20 @@ TEST_F(CPUBBoxUtilTest, TestMatchBBoxLableAllPerPredictionEx) {
 
 TEST_F(CPUBBoxUtilTest, TestGetGroundTruth) {
   const int num_gt = 4;
-  Blob<float> gt_blob(1, 1, num_gt, 8);
+  Blob<float> gt_blob(1, 1, num_gt, 10);
   float* gt_data = gt_blob.mutable_cpu_data();
   for (int i = 0; i < 4; ++i) {
     int image_id = ceil(i / 2.);
-    gt_data[i * 8] = image_id;
-    gt_data[i * 8 + 1] = i;
-    gt_data[i * 8 + 2] = 0;
-    gt_data[i * 8 + 3] = 0.1;
-    gt_data[i * 8 + 4] = 0.1;
-    gt_data[i * 8 + 5] = 0.3;
-    gt_data[i * 8 + 6] = 0.3;
-    gt_data[i * 8 + 7] = i % 2;
+    gt_data[i * 10] = image_id;
+    gt_data[i * 10 + 1] = i;
+    gt_data[i * 10 + 2] = 0;
+    gt_data[i * 10 + 3] = 0.1;
+    gt_data[i * 10 + 4] = 0.1;
+    gt_data[i * 10 + 5] = 0.3;
+    gt_data[i * 10 + 6] = 0.3;
+    gt_data[i * 10 + 7] = i % 2;
+    gt_data[i* 10 + 8] = 30;
+    gt_data[i* 10 + 9 ] = 1;
   }
 
   map<int, vector<NormalizedBBox> > all_gt_bboxes;

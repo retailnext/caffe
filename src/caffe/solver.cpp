@@ -207,7 +207,7 @@ void Solver<Dtype>::Step(int iters) {
     if (param_.test_interval() && iter_ % param_.test_interval() == 0
         && (iter_ > 0 || param_.test_initialization())
         && Caffe::root_solver()) {
-      TestAll();
+        TestAll();
       if (requested_early_exit_) {
         // Break out of the while loop because stop was requested while testing.
         break;
@@ -233,23 +233,57 @@ void Solver<Dtype>::Step(int iters) {
       const vector<Blob<Dtype>*>& result = net_->output_blobs();
       int score_index = 0;
       for (int j = 0; j < result.size(); ++j) {
-        const Dtype* result_vec = result[j]->cpu_data();
-        const string& output_name =
+
+    	 const Dtype* result_vec = result[j]->cpu_data();
+         const string& output_name =
             net_->blob_names()[net_->output_blob_indices()[j]];
-        const Dtype loss_weight =
+         const Dtype loss_weight =
             net_->blob_loss_weights()[net_->output_blob_indices()[j]];
-        for (int k = 0; k < result[j]->count(); ++k) {
-          ostringstream loss_msg_stream;
-          if (loss_weight) {
-            loss_msg_stream << " (* " << loss_weight
+
+         //for (int k = 0; k < result[j]->count(); ++k) {
+         for(int k = 0; k < 9; ++k) {
+
+           if(k == 0) {
+        	   ostringstream loss_msg_stream;
+               if (loss_weight) {
+                 loss_msg_stream << " (* " << loss_weight
                             << " = " << loss_weight * result_vec[k] << " loss)";
-          }
-          LOG_IF(INFO, Caffe::root_solver()) << "    Train net output #"
-              << score_index++ << ": " << output_name << " = "
-              << result_vec[k] << loss_msg_stream.str();
-        }
-      }
-    }
+               }
+               LOG_IF(INFO, Caffe::root_solver()) << "    Train net output #"
+                  << score_index++ << ": " << output_name << " = "
+                  << result_vec[k] << loss_msg_stream.str();
+           } // if k ==0
+
+           if(k == 1) {
+               LOG_IF(INFO, Caffe::root_solver())<< "        Train net localization loss: "
+               	    <<result_vec[k]/result_vec[k+1]<< " = (" << result_vec[k] <<" / " <<  result_vec[k+1] << ")";
+           } // if k ==1
+
+           if(k == 3) {
+
+              LOG_IF(INFO, Caffe::root_solver())<< "        Train net confidence loss: "
+                      	<<result_vec[k]/result_vec[k+1]<< " = (" << result_vec[k] <<" / " <<  result_vec[k+1] << ")";
+                  }
+
+           if(k == 5) {
+
+                        LOG_IF(INFO, Caffe::root_solver())<< "        Train net age confidence loss: "
+                        		<<result_vec[k]/result_vec[k+1]<< " = (" << result_vec[k] <<" / " <<  result_vec[k+1] << ")";
+                  }
+
+
+           if(k == 7) {
+
+                        LOG_IF(INFO, Caffe::root_solver())<< "        Train net gender confidence loss: "
+                        		<<result_vec[k]/result_vec[k+1]<< " = (" << result_vec[k] <<" / " <<  result_vec[k+1] << ")";
+                  }
+
+
+
+         } // for k
+     } // for j
+   } // display
+
     for (int i = 0; i < callbacks_.size(); ++i) {
       callbacks_[i]->on_gradients_ready();
     }
@@ -422,11 +456,23 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
             << ", Testing net (#" << test_net_id << ")";
   CHECK_NOTNULL(test_nets_[test_net_id].get())->
       ShareTrainedLayersWith(net_.get());
+
   map<int, map<int, vector<pair<float, int> > > > all_true_pos;
   map<int, map<int, vector<pair<float, int> > > > all_false_pos;
+
   map<int, map<int, int> > all_num_pos;
+  map<int, map<int, int> > all_age_num_pos; //Added by Dong Liu for MTL
+  map<int, map<int, int> > all_gender_num_pos; //Added by Dong Liu for MTL
+
+  map<int, map<int, vector<pair<float, int> > > > all_age_true_pos; //Added by Dong Liu for MTL
+  map<int, map<int, vector<pair<float, int> > > > all_age_false_pos; // Added by Dong Liu for MTL
+
+  map<int, map<int, vector<pair<float, int> > > > all_gender_true_pos; // Added by Dong Liu for MTL
+  map<int, map<int, vector<pair<float, int> > > > all_gender_false_pos; // Added by Dong Liu for MTL
+
   const shared_ptr<Net<Dtype> >& test_net = test_nets_[test_net_id];
   Dtype loss = 0;
+
   for (int i = 0; i < param_.test_iter(test_net_id); ++i) {
     SolverAction::Enum request = GetRequestedAction();
     // Check to see if stoppage of testing/training has been requested.
@@ -448,36 +494,272 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
     if (param_.test_compute_loss()) {
       loss += iter_loss;
     }
-    for (int j = 0; j < result.size(); ++j) {
-      CHECK_EQ(result[j]->width(), 5);
+
+    for (int j = 0; j < result.size(); j++) {
+
+      if(j==1) {
+
+      CHECK_EQ(result[j]->width(), 13); //change 5 into 13 by Dong Liu for MTL
       const Dtype* result_vec = result[j]->cpu_data();
       int num_det = result[j]->height();
+      //total_det_num = total_det_num + num_det;
+
       for (int k = 0; k < num_det; ++k) {
-        int item_id = static_cast<int>(result_vec[k * 5]);
-        int label = static_cast<int>(result_vec[k * 5 + 1]);
+        int item_id = static_cast<int>(result_vec[k * 13]); // change 5 into 11 by Dong Liu for MTL
+        int label = static_cast<int>(result_vec[k * 13 + 1]); //change 5 into 11 by Dong Liu for MTL
+        //int age_label = static_cast<int>(result_vec[k * 9 + 5]); //Added by Dong Liu for MTL
+        //int gender_label = static_cast<int>(result_vec[k * 9 + 5]); //Added by Dong Liu for MTL
+
         if (item_id == -1) {
           // Special row of storing number of positives for a label.
-          if (all_num_pos[j].find(label) == all_num_pos[j].end()) {
-            all_num_pos[j][label] = static_cast<int>(result_vec[k * 5 + 2]);
+          if (all_num_pos[j-1].find(label) == all_num_pos[j-1].end()) {
+            all_num_pos[j-1][label] = static_cast<int>(result_vec[k * 13 + 2]);
           } else {
-            all_num_pos[j][label] += static_cast<int>(result_vec[k * 5 + 2]);
+            all_num_pos[j-1][label] += static_cast<int>(result_vec[k * 13 + 2]);
           }
-        } else {
+        }
+
+        /*if(item_id == -2) {
+        // Added by Dong Liu for MTL in age estimation
+          if (all_age_num_pos[j].find(age_label) == all_age_num_pos[j].end()) {
+            all_age_num_pos[j][age_label] = static_cast<int>(result_vec[k * 13 + 11]);
+          } else {
+            all_age_num_pos[j][age_label] += static_cast<int>(result_vec[k * 13 + 11]);
+          }
+        }*/
+
+        /*if(item_id == -2) {
+          // Added by Dong Liu for MTL in gender estimation
+          if (all_gender_num_pos[j].find(gender_label) == all_gender_num_pos[j].end()) {
+            all_gender_num_pos[j][gender_label] = static_cast<int>(result_vec[k * 9 + 8]);
+          } else {
+            all_gender_num_pos[j][gender_label] += static_cast<int>(result_vec[k * 9 + 8]);
+          }
+        } */
+
+        if(item_id != -1 && item_id != -2 && item_id != -3) { // item_id ! = -1 -2 -3
           // Normal row storing detection status.
-          float score = result_vec[k * 5 + 2];
-          int tp = static_cast<int>(result_vec[k * 5 + 3]);
-          int fp = static_cast<int>(result_vec[k * 5 + 4]);
+          float score = result_vec[k * 13 + 2]; // change 5 into 11 by Dong Liu for MTL
+          int tp = static_cast<int>(result_vec[k * 13 + 3]); // change 5 into 11 by Dong Liu for MTL
+          int fp = static_cast<int>(result_vec[k * 13 + 4]); // change 5 into 11 by Dong Liu for MTL
           if (tp == 0 && fp == 0) {
             // Ignore such case. It happens when a detection bbox is matched to
             // a difficult gt bbox and we don't evaluate on difficult gt bbox.
             continue;
           }
-          all_true_pos[j][label].push_back(std::make_pair(score, tp));
-          all_false_pos[j][label].push_back(std::make_pair(score, fp));
-        }
-      }
-    }
-  }
+          all_true_pos[j-1][label].push_back(std::make_pair(score, tp));
+          all_false_pos[j-1][label].push_back(std::make_pair(score, fp));
+
+          // Normal row storing age detection status Added by Dong Liu for MTL
+          /*float age_score = result_vec[k * 13 +  11];
+          int age_tp = static_cast<int>(result_vec[k * 13 + 6]);
+          int age_fp = static_cast<int>(result_vec[k * 13 + 7]);
+          if (age_tp == 0 && age_fp == 0) {
+            // Ignore such case. It happens when a detection bbox is matched to
+            // a difficult gt bbox and we don't evaluate on difficult gt bbox.
+            continue;
+          }
+          all_age_true_pos[j][age_label].push_back(std::make_pair(age_score, age_tp));
+          all_age_false_pos[j][age_label].push_back(std::make_pair(age_score, age_fp)); */
+
+
+          // Normal row storing gender detection status Added by Dong Liu for MTL
+          /*float gender_score = result_vec[k * 9 +  8];
+          int gender_tp = static_cast<int>(result_vec[k * 9 + 6]);
+          int gender_fp = static_cast<int>(result_vec[k * 9 + 7]);
+          if (gender_tp == 0 && gender_fp == 0) {
+            // Ignore such case. It happens when a detection bbox is matched to
+            // a difficult gt bbox and we don't evaluate on difficult gt bbox.
+            continue;
+          }
+          all_gender_true_pos[j][gender_label].push_back(std::make_pair(gender_score, gender_tp));
+          all_gender_false_pos[j][gender_label].push_back(std::make_pair(gender_score, gender_fp));*/
+
+          //age_count = age_count + double(static_cast<int>(result_vec[k * 11 + 6])); //double(static_cast<int>(result_vec[k * 11 + 6]))/double(len); //Added by Dong Liu for MTL
+          //gender_count = gender_count + double(static_cast<int>(result_vec[k * 11 + 9])); //double(static_cast<int>(result_vec[k * 11 + 9]))/double(len); //Added by Dong Liu for MTL
+
+        } // if (!= 1 && !=2)
+       } // for num_det
+      } // if (j ==0)
+
+
+      if(j == 0) {
+
+            CHECK_EQ(result[j]->width(), 13); //change 5 into 13 by Dong Liu for MTL
+            const Dtype* result_vec = result[j]->cpu_data();
+            int num_det = result[j]->height();
+            //total_det_num = total_det_num + num_det;
+
+            for (int k = 0; k < num_det; ++k) {
+              int item_id = static_cast<int>(result_vec[k * 13]); // change 5 into 11 by Dong Liu for MTL
+              //int label = static_cast<int>(result_vec[k * 9 + 1]); //change 5 into 11 by Dong Liu for MTL
+              //int age_label = static_cast<int>(result_vec[k * 9 + 5]); //Added by Dong Liu for MTL
+              int age_label = static_cast<int>(result_vec[k * 13 + 5]); //Added by Dong Liu for MTL
+
+              /*if (item_id == -1) {
+                // Special row of storing number of positives for a label.
+                if (all_num_pos[j].find(label) == all_num_pos[j].end()) {
+                  all_num_pos[j][label] = static_cast<int>(result_vec[k * 9 + 2]);
+                } else {
+                  all_num_pos[j][label] += static_cast<int>(result_vec[k * 9 + 2]);
+                }
+              }*/
+
+              /*if(item_id == -2) {
+              // Added by Dong Liu for MTL in age estimation
+                if (all_age_num_pos[j].find(age_label) == all_age_num_pos[j].end()) {
+                  all_age_num_pos[j][age_label] = static_cast<int>(result_vec[k * 13 + 11]);
+                } else {
+                  all_age_num_pos[j][age_label] += static_cast<int>(result_vec[k * 13 + 11]);
+                }
+              }*/
+
+              if(item_id == -2) {
+                // Added by Dong Liu for MTL in gender estimation
+                if (all_age_num_pos[j].find(age_label) == all_age_num_pos[j].end()) {
+                  all_age_num_pos[j][age_label] = static_cast<int>(result_vec[k * 13 + 8]);
+                } else {
+                  all_age_num_pos[j][age_label] += static_cast<int>(result_vec[k * 13 + 8]);
+                }
+              }
+
+              if(item_id != -1 && item_id != -2 && item_id != -3) { // item_id ! = -1 -2 -3
+                // Normal row storing detection status.
+                /*float score = result_vec[k * 9 + 2]; // change 5 into 11 by Dong Liu for MTL
+                int tp = static_cast<int>(result_vec[k * 9 + 3]); // change 5 into 11 by Dong Liu for MTL
+                int fp = static_cast<int>(result_vec[k * 9 + 4]); // change 5 into 11 by Dong Liu for MTL
+                if (tp == 0 && fp == 0) {
+                  // Ignore such case. It happens when a detection bbox is matched to
+                  // a difficult gt bbox and we don't evaluate on difficult gt bbox.
+                  continue;
+                }
+                all_true_pos[j][label].push_back(std::make_pair(score, tp));
+                all_false_pos[j][label].push_back(std::make_pair(score, fp)); */
+
+                // Normal row storing age detection status Added by Dong Liu for MTL
+                /*float age_score = result_vec[k * 13 +  11];
+                int age_tp = static_cast<int>(result_vec[k * 13 + 6]);
+                int age_fp = static_cast<int>(result_vec[k * 13 + 7]);
+                if (age_tp == 0 && age_fp == 0) {
+                  // Ignore such case. It happens when a detection bbox is matched to
+                  // a difficult gt bbox and we don't evaluate on difficult gt bbox.
+                  continue;
+                }
+                all_age_true_pos[j][age_label].push_back(std::make_pair(age_score, age_tp));
+                all_age_false_pos[j][age_label].push_back(std::make_pair(age_score, age_fp)); */
+
+
+                // Normal row storing gender detection status Added by Dong Liu for MTL
+                float age_score = result_vec[k * 13 +  8];
+                int age_tp = static_cast<int>(result_vec[k * 13 + 6]);
+                int age_fp = static_cast<int>(result_vec[k * 13 + 7]);
+                if (age_tp == 0 && age_fp == 0) {
+                  // Ignore such case. It happens when a detection bbox is matched to
+                  // a difficult gt bbox and we don't evaluate on difficult gt bbox.
+                  continue;
+                }
+                all_age_true_pos[j][age_label].push_back(std::make_pair(age_score, age_tp));
+                all_age_false_pos[j][age_label].push_back(std::make_pair(age_score, age_fp));
+
+                //age_count = age_count + double(static_cast<int>(result_vec[k * 11 + 6])); //double(static_cast<int>(result_vec[k * 11 + 6]))/double(len); //Added by Dong Liu for MTL
+                //gender_count = gender_count + double(static_cast<int>(result_vec[k * 11 + 9])); //double(static_cast<int>(result_vec[k * 11 + 9]))/double(len); //Added by Dong Liu for MTL
+
+              } // if (!= 1 && !=2)
+             } // for num_det
+            } // if (j == 1)
+
+
+
+
+      if(j == 2) {
+
+            CHECK_EQ(result[j]->width(), 13); //change 5 into 13 by Dong Liu for MTL
+            const Dtype* result_vec = result[j]->cpu_data();
+            int num_det = result[j]->height();
+            //total_det_num = total_det_num + num_det;
+
+            for (int k = 0; k < num_det; ++k) {
+              int item_id = static_cast<int>(result_vec[k * 13]); // change 5 into 11 by Dong Liu for MTL
+              //int label = static_cast<int>(result_vec[k * 9 + 1]); //change 5 into 11 by Dong Liu for MTL
+              //int age_label = static_cast<int>(result_vec[k * 9 + 5]); //Added by Dong Liu for MTL
+              int gender_label = static_cast<int>(result_vec[k * 13 + 9]); //Added by Dong Liu for MTL
+
+              /*if (item_id == -1) {
+                // Special row of storing number of positives for a label.
+                if (all_num_pos[j].find(label) == all_num_pos[j].end()) {
+                  all_num_pos[j][label] = static_cast<int>(result_vec[k * 9 + 2]);
+                } else {
+                  all_num_pos[j][label] += static_cast<int>(result_vec[k * 9 + 2]);
+                }
+              }*/
+
+              /*if(item_id == -2) {
+              // Added by Dong Liu for MTL in age estimation
+                if (all_age_num_pos[j].find(age_label) == all_age_num_pos[j].end()) {
+                  all_age_num_pos[j][age_label] = static_cast<int>(result_vec[k * 13 + 11]);
+                } else {
+                  all_age_num_pos[j][age_label] += static_cast<int>(result_vec[k * 13 + 11]);
+                }
+              }*/
+
+              if(item_id == -3) {
+                // Added by Dong Liu for MTL in gender estimation
+                if (all_gender_num_pos[j-2].find(gender_label) == all_gender_num_pos[j-2].end()) {
+                  all_gender_num_pos[j-2][gender_label] = static_cast<int>(result_vec[k * 13 + 12]);
+                } else {
+                  all_gender_num_pos[j-2][gender_label] += static_cast<int>(result_vec[k * 13 + 12]);
+                }
+              }
+
+              if(item_id != -1 && item_id != -2 && item_id != -3) { // item_id ! = -1 -2 -3
+                // Normal row storing detection status.
+                /*float score = result_vec[k * 9 + 2]; // change 5 into 11 by Dong Liu for MTL
+                int tp = static_cast<int>(result_vec[k * 9 + 3]); // change 5 into 11 by Dong Liu for MTL
+                int fp = static_cast<int>(result_vec[k * 9 + 4]); // change 5 into 11 by Dong Liu for MTL
+                if (tp == 0 && fp == 0) {
+                  // Ignore such case. It happens when a detection bbox is matched to
+                  // a difficult gt bbox and we don't evaluate on difficult gt bbox.
+                  continue;
+                }
+                all_true_pos[j][label].push_back(std::make_pair(score, tp));
+                all_false_pos[j][label].push_back(std::make_pair(score, fp)); */
+
+                // Normal row storing age detection status Added by Dong Liu for MTL
+                /*float age_score = result_vec[k * 13 +  11];
+                int age_tp = static_cast<int>(result_vec[k * 13 + 6]);
+                int age_fp = static_cast<int>(result_vec[k * 13 + 7]);
+                if (age_tp == 0 && age_fp == 0) {
+                  // Ignore such case. It happens when a detection bbox is matched to
+                  // a difficult gt bbox and we don't evaluate on difficult gt bbox.
+                  continue;
+                }
+                all_age_true_pos[j][age_label].push_back(std::make_pair(age_score, age_tp));
+                all_age_false_pos[j][age_label].push_back(std::make_pair(age_score, age_fp)); */
+
+
+                // Normal row storing gender detection status Added by Dong Liu for MTL
+                float gender_score = result_vec[k * 13 +  12];
+                int gender_tp = static_cast<int>(result_vec[k * 13 + 10]);
+                int gender_fp = static_cast<int>(result_vec[k * 13 + 11]);
+                if (gender_tp == 0 && gender_fp == 0) {
+                  // Ignore such case. It happens when a detection bbox is matched to
+                  // a difficult gt bbox and we don't evaluate on difficult gt bbox.
+                  continue;
+                }
+                all_gender_true_pos[j-2][gender_label].push_back(std::make_pair(gender_score, gender_tp));
+                all_gender_false_pos[j-2][gender_label].push_back(std::make_pair(gender_score, gender_fp));
+
+                //age_count = age_count + double(static_cast<int>(result_vec[k * 11 + 6])); //double(static_cast<int>(result_vec[k * 11 + 6]))/double(len); //Added by Dong Liu for MTL
+                //gender_count = gender_count + double(static_cast<int>(result_vec[k * 11 + 9])); //double(static_cast<int>(result_vec[k * 11 + 9]))/double(len); //Added by Dong Liu for MTL
+
+              } // if (!= 1 && !=2)
+             } // for num_det
+            } // if (j == 1)
+
+    } // for j result.size()
+  } //for test net id
+
+
   if (requested_early_exit_) {
     LOG(INFO)     << "Test interrupted.";
     return;
@@ -486,21 +768,26 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
     loss /= param_.test_iter(test_net_id);
     LOG(INFO) << "Test loss: " << loss;
   }
+
   for (int i = 0; i < all_true_pos.size(); ++i) {
-    if (all_true_pos.find(i) == all_true_pos.end()) {
+
+	if (all_true_pos.find(i) == all_true_pos.end()) {
       LOG(FATAL) << "Missing output_blob true_pos: " << i;
     }
     const map<int, vector<pair<float, int> > >& true_pos =
         all_true_pos.find(i)->second;
+
     if (all_false_pos.find(i) == all_false_pos.end()) {
       LOG(FATAL) << "Missing output_blob false_pos: " << i;
     }
     const map<int, vector<pair<float, int> > >& false_pos =
         all_false_pos.find(i)->second;
+
     if (all_num_pos.find(i) == all_num_pos.end()) {
       LOG(FATAL) << "Missing output_blob num_pos: " << i;
     }
     const map<int, int>& num_pos = all_num_pos.find(i)->second;
+
     map<int, float> APs;
     float mAP = 0.;
     // Sort true_pos and false_pos with descend scores.
@@ -526,10 +813,148 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
       mAP += APs[label];
     }
     mAP /= num_pos.size();
+
+    // Calculate age MAP, Added by Dong Liu for MTL
+    /*if (all_age_true_pos.find(i) == all_age_true_pos.end()) {
+      LOG(FATAL) << "Missing output_blob age_true_pos: " << i;
+    }
+    const map<int, vector<pair<float, int> > >& age_true_pos =
+        all_age_true_pos.find(i)->second;
+    if (all_age_false_pos.find(i) == all_age_false_pos.end()) {
+      LOG(FATAL) << "Missing output_blob age_false_pos: " << i;
+    }
+    const map<int, vector<pair<float, int> > >& age_false_pos =
+        all_age_false_pos.find(i)->second;
+    if (all_age_num_pos.find(i) == all_age_num_pos.end()) {
+      LOG(FATAL) << "Missing output_blob age_num_pos: " << i;
+    }
+    const map<int, int>& age_num_pos = all_age_num_pos.find(i)->second;
+    map<int, float> age_APs;
+    float age_mAP = 0.;
+    // Sort true_pos and false_pos with descend scores.
+    for (map<int, int>::const_iterator it = age_num_pos.begin();
+         it != age_num_pos.end(); ++it) {
+      int age_label = it->first;
+      int age_label_num_pos = it->second;
+
+      if (age_true_pos.find(age_label) == age_true_pos.end()) {
+        LOG(WARNING) << "Missing age_true_pos for age_label: " << age_label;
+        continue;
+      }
+      const vector<pair<float, int> >& age_label_true_pos =
+          age_true_pos.find(age_label)->second;
+
+      if (age_false_pos.find(age_label) == age_false_pos.end()) {
+        LOG(WARNING) << "Missing age_false_pos for age_label: " << age_label;
+        continue;
+      }
+      const vector<pair<float, int> >& age_label_false_pos =
+          age_false_pos.find(age_label)->second;
+
+      vector<float> age_prec, age_rec;
+      ComputeAP(age_label_true_pos, age_label_num_pos, age_label_false_pos,
+                param_.ap_version(), &age_prec, &age_rec, &(age_APs[age_label]));
+      age_mAP += age_APs[age_label];
+    }
+    age_mAP /= age_num_pos.size(); */
+
+    //added on April 7th 2017
+    // Calculate age MAP, Added by Dong Liu for MTL
+    if (all_age_true_pos.find(i) == all_age_true_pos.end()) {
+      LOG(FATAL) << "Missing output_blob age_true_pos: " << i;
+    }
+    const map<int, vector<pair<float, int> > >& age_true_pos =
+        all_age_true_pos.find(i)->second;
+    if (all_age_false_pos.find(i) == all_age_false_pos.end()) {
+      LOG(FATAL) << "Missing output_blob age_false_pos: " << i;
+    }
+    const map<int, vector<pair<float, int> > >& age_false_pos =
+        all_age_false_pos.find(i)->second;
+    if (all_age_num_pos.find(i) == all_age_num_pos.end()) {
+      LOG(FATAL) << "Missing output_blob age_num_pos: " << i;
+    }
+    const map<int, int>& age_num_pos = all_age_num_pos.find(i)->second;
+    map<int, float> age_APs;
+    float age_mAP = 0.;
+    // Sort true_pos and false_pos with descend scores.
+    for (map<int, int>::const_iterator it = age_num_pos.begin();
+         it != age_num_pos.end(); ++it) {
+      int age_label = it->first;
+      int age_label_num_pos = it->second;
+
+      if (age_true_pos.find(age_label) == age_true_pos.end()) {
+        LOG(WARNING) << "Missing age_true_pos for age_label: " << age_label;
+        continue;
+      }
+      const vector<pair<float, int> >& age_label_true_pos =
+          age_true_pos.find(age_label)->second;
+
+      if (age_false_pos.find(age_label) == age_false_pos.end()) {
+        LOG(WARNING) << "Missing age_false_pos for age_label: " << age_label;
+        continue;
+      }
+      const vector<pair<float, int> >& age_label_false_pos =
+          age_false_pos.find(age_label)->second;
+
+      vector<float> age_prec, age_rec;
+      ComputeAP(age_label_true_pos, age_label_num_pos, age_label_false_pos,
+                param_.ap_version(), &age_prec, &age_rec, &(age_APs[age_label]));
+      age_mAP += age_APs[age_label];
+    }
+    age_mAP /= age_num_pos.size();
+
+    // Calculate gender MAP, Added by Dong Liu for MTL
+    if (all_gender_true_pos.find(i) == all_gender_true_pos.end()) {
+      LOG(FATAL) << "Missing output_blob gender_true_pos: " << i;
+    }
+    const map<int, vector<pair<float, int> > >& gender_true_pos =
+        all_gender_true_pos.find(i)->second;
+    if (all_gender_false_pos.find(i) == all_gender_false_pos.end()) {
+      LOG(FATAL) << "Missing output_blob gender_false_pos: " << i;
+    }
+    const map<int, vector<pair<float, int> > >& gender_false_pos =
+        all_gender_false_pos.find(i)->second;
+    if (all_gender_num_pos.find(i) == all_gender_num_pos.end()) {
+      LOG(FATAL) << "Missing output_blob gender_num_pos: " << i;
+    }
+    const map<int, int>& gender_num_pos = all_gender_num_pos.find(i)->second;
+    map<int, float> gender_APs;
+    float gender_mAP = 0.;
+    // Sort true_pos and false_pos with descend scores.
+    for (map<int, int>::const_iterator it = gender_num_pos.begin();
+         it != gender_num_pos.end(); ++it) {
+      int gender_label = it->first;
+      int gender_label_num_pos = it->second;
+
+      if (gender_true_pos.find(gender_label) == gender_true_pos.end()) {
+        LOG(WARNING) << "Missing gender_true_pos for gender_label: " << gender_label;
+        continue;
+      }
+      const vector<pair<float, int> >& gender_label_true_pos =
+          gender_true_pos.find(gender_label)->second;
+
+      if (gender_false_pos.find(gender_label) == gender_false_pos.end()) {
+        LOG(WARNING) << "Missing gender_false_pos for gender_label: " << gender_label;
+        continue;
+      }
+      const vector<pair<float, int> >& gender_label_false_pos =
+          gender_false_pos.find(gender_label)->second;
+
+      vector<float> gender_prec, gender_rec;
+      ComputeAP(gender_label_true_pos, gender_label_num_pos, gender_label_false_pos,
+                param_.ap_version(), &gender_prec, &gender_rec, &(gender_APs[gender_label]));
+      gender_mAP += gender_APs[gender_label];
+    }
+    gender_mAP /= gender_num_pos.size();
+
     const int output_blob_index = test_net->output_blob_indices()[i];
     const string& output_name = test_net->blob_names()[output_blob_index];
     LOG(INFO) << "    Test net output #" << i << ": " << output_name << " = "
               << mAP;
+    LOG(INFO) << "    Test net output #" << i << ": " << output_name << " age mAP = " // Added by Dong Liu for MTL
+                  << age_mAP;
+    LOG(INFO) << "    Test net output #" << i << ": " << output_name << " gender mAP = " // Added by Dong Liu for MTL
+                  << gender_mAP;
   }
 }
 

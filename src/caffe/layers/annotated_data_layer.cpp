@@ -93,7 +93,8 @@ void AnnotatedDataLayer<Dtype>::DataLayerSetUp(
         // cpu_data and gpu_data for consistent prefetch thread. Thus we make
         // sure there is at least one bbox.
         label_shape[2] = std::max(num_bboxes, 1);
-        label_shape[3] = 8;
+        // label_shape[3] = 8; commented by Dong Liu for MTL
+        label_shape[3] = 10;
       } else {
         LOG(FATAL) << "Unknown annotation type.";
       }
@@ -238,12 +239,14 @@ void AnnotatedDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     if (anno_type_ == AnnotatedDatum_AnnotationType_BBOX) {
       label_shape[0] = 1;
       label_shape[1] = 1;
-      label_shape[3] = 8;
+      //label_shape[3] = 8; commneted by Dong Liu for MTL
+      label_shape[3] = 10; // Dong Liu for MTL
       if (num_bboxes == 0) {
         // Store all -1 in the label.
         label_shape[2] = 1;
         batch->label_.Reshape(label_shape);
-        caffe_set<Dtype>(8, -1, batch->label_.mutable_cpu_data());
+        //caffe_set<Dtype>(8, -1, batch->label_.mutable_cpu_data()); commented by Dong Liu for MTL
+        caffe_set<Dtype>(10, -1, batch->label_.mutable_cpu_data());
       } else {
         // Reshape the label and store the annotation.
         label_shape[2] = num_bboxes;
@@ -265,6 +268,8 @@ void AnnotatedDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
               top_label[idx++] = bbox.xmax();
               top_label[idx++] = bbox.ymax();
               top_label[idx++] = bbox.difficult();
+              top_label[idx++] = bbox.age(); // Dong Liu for MTL
+              top_label[idx++] = bbox.gender(); // Dong Liu for MTL
             }
           }
         }

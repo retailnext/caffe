@@ -39,9 +39,9 @@ class DetectionOutputLayer : public Layer<Dtype> {
       const vector<Blob<Dtype>*>& top);
 
   virtual inline const char* type() const { return "DetectionOutput"; }
-  virtual inline int MinBottomBlobs() const { return 3; }
-  virtual inline int MaxBottomBlobs() const { return 4; }
-  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline int MinBottomBlobs() const { return 5; }
+  virtual inline int MaxBottomBlobs() const { return 6; }
+  virtual inline int ExactNumTopBlobs() const { return 1; } // change 2 into 1 on March 10th 2017
 
  protected:
   /**
@@ -74,9 +74,14 @@ class DetectionOutputLayer : public Layer<Dtype> {
   }
 
   int num_classes_;
+  int num_age_classes_; //MTL
+  int num_gender_classes_; //MTL
   bool share_location_;
   int num_loc_classes_;
   int background_label_id_;
+  int age_background_label_id_; //MTL
+  int gender_background_label_id_; //MTL
+
   CodeType code_type_;
   bool variance_encoded_in_target_;
   int keep_top_k_;
@@ -98,8 +103,16 @@ class DetectionOutputLayer : public Layer<Dtype> {
   vector<pair<int, int> > sizes_;
   int num_test_image_;
   int name_count_;
+  int age_name_count_;
+  int gender_name_count_;
+  int visualize_count_; //added by Dong Liu
+  bool need_save_frame_; //Added by Dong Liu
+  string frame_output_directory_; //Added by Dong Liu
+  int batch_size_; // added by Dong Liu
 
   ptree detections_;
+  ptree gender_detections_;
+  ptree age_detections_;
 
   bool visualize_;
   float visualize_threshold_;
